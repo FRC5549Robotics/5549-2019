@@ -35,8 +35,6 @@ class MyRobot(wpilib.IterativeRobot):
 
     def robotInit(self):
         """Robot initialization function"""
-        self.digitalSourceA = wpilib.DigitalSource.getChannel('int ChannelA')
-        self.digitalSourceB = wpilib.DigitalSource.getChannel('int ChannelB')
         
         self.encoder = wpilib.Encoder(self.digitalSourceA, self.digitalSourceB)
 
@@ -94,6 +92,8 @@ class MyRobot(wpilib.IterativeRobot):
 
         # initialization of the limit switch
         self.limitSwitch = wpilib.DigitalInput(1)
+        
+        self.encoder = wpilib.Encoder(0, 1)
 
     def autonomousInit(self):
         self.encoder.reset()
