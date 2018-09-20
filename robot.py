@@ -35,14 +35,18 @@ class MyRobot(wpilib.IterativeRobot):
 
     def robotInit(self):
         """Robot initialization function"""
+        self.digitalSourceA = wpilib.DigitalSource.getChannel('int ChannelA')
+        self.digitalSourceB = wpilib.DigitalSource.getChannel('int ChannelB')
+        
+        self.encoder = wpilib.Encoder(self.digitalSourceA, self.digitalSourceB)
 
-        # object that handles basic drive operations
+        # objects that handle basic drive operations
         self.frontRightMotor = wpilib.Victor(0)
         self.rearRightMotor = wpilib.Victor(1)
         self.frontLeftMotor = wpilib.Victor(2)
         self.rearLeftMotor = wpilib.Victor(3)
 
-        # object that handles basic intake operations
+        # objects that handle basic intake operations
         self.omnom_left_motor = wpilib.Spark(7)
         self.omnom_right_motor = wpilib.Spark(8)
 
@@ -92,6 +96,7 @@ class MyRobot(wpilib.IterativeRobot):
         self.limitSwitch = wpilib.DigitalInput(1)
 
     def autonomousInit(self):
+        self.encoder.reset()
         """This function is run once each time the robot enters autonomous mode."""
         self.timer.reset()
         self.timer.start()
@@ -333,6 +338,7 @@ class MyRobot(wpilib.IterativeRobot):
             straight()
 
     def teleopInit(self):
+        self.encoder.reset()
         """Executed at the start of teleop mode"""
         self.drive.setSafetyEnabled(True)
 
