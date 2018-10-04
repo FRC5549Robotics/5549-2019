@@ -93,8 +93,9 @@ class MyRobot(wpilib.IterativeRobot):
         # initialization of the limit switch
         self.limitSwitch = wpilib.DigitalInput(1)
         
+        # encoder initialization
         self.encoder = wpilib.Encoder(0, 1)
-
+        
     def autonomousInit(self):
         self.encoder.reset()
         """This function is run once each time the robot enters autonomous mode."""
