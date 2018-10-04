@@ -36,60 +36,58 @@ class MyRobot(wpilib.IterativeRobot):
     def robotInit(self):
         """Robot initialization function"""
         
-        self.encoder = wpilib.Encoder(self.digitalSourceA, self.digitalSourceB)
-
         # objects that handle basic drive operations
         self.frontRightMotor = wpilib.Victor(0)
         self.rearRightMotor = wpilib.Victor(1)
         self.frontLeftMotor = wpilib.Victor(2)
         self.rearLeftMotor = wpilib.Victor(3)
-
+        
         # objects that handle basic intake operations
         self.omnom_left_motor = wpilib.Spark(7)
         self.omnom_right_motor = wpilib.Spark(8)
-
+        
         # object that handles basic lift operations
         self.liftMotor = wpilib.Spark(4)
 
         # object that handles basic climb operations
         self.winch1 = wpilib.Spark(5)
         self.winch2 = wpilib.Spark(6)
-
+        
         # defining motor groups
         self.left = wpilib.SpeedControllerGroup(self.frontLeftMotor, self.rearLeftMotor)
         self.right = wpilib.SpeedControllerGroup(self.frontRightMotor, self.rearRightMotor)
-
+        
         # setting up drive group for drive motors
         self.drive = DifferentialDrive(self.left, self.right)
         self.drive.setExpiration(0.1)
-
+        
         # defining omnom motor groups
         self.omnom_left = wpilib.SpeedControllerGroup(self.omnom_left_motor)
         self.omnom_right = wpilib.SpeedControllerGroup(self.omnom_right_motor)
-
+        
         # setting up omnom group for omnom motors
         self.omnom = DifferentialDrive(self.omnom_left, self.omnom_right)
         self.omnom.setExpiration(0.1)
-
+        
         # defines timer for autonomous
         self.timer = wpilib.Timer()
-
+        
         # joystick 0, 1, 2 on the driver station
         self.leftStick = wpilib.Joystick(0)
         self.rightStick = wpilib.Joystick(1)
         self.stick = wpilib.Joystick(2)
-
+        
         # initialization of the FMS
         self.DS = DriverStation.getInstance()
         self.PS = DriverStation.getInstance()
-
+        
         # initialization of the camera server
         wpilib.CameraServer.launch()
-
+        
         # initialization of the gyroscope
         self.gyro = wpilib.ADXRS450_Gyro()
         self.gyro.calibrate()
-
+        
         # initialization of the limit switch
         self.limitSwitch = wpilib.DigitalInput(1)
         
@@ -101,23 +99,23 @@ class MyRobot(wpilib.IterativeRobot):
         """This function is run once each time the robot enters autonomous mode."""
         self.timer.reset()
         self.timer.start()
-
+        
         self.gyro.reset()
         self.rightTargetHeading = -(self.gyro.getAngle() + 90.0)
         self.leftTargetHeading = -(self.gyro.getAngle() - 90.0)
-
+        
     def autonomousPeriodic(self):
         """This function is called periodically during autonomous."""
         # gets randomization of field elements
         gameData = self.DS.getGameSpecificMessage()
         # gets location of robot on the field
         position = self.PS.getLocation()
-
+        
         # basic autonomous function presets
-
+        
         def stop_motor():
             self.drive.tankDrive(0, 0)
-
+        
         def straight_speed():
             self.drive.tankDrive(0.75, 0.80)
             self.omnom_left.set(-0.1)
