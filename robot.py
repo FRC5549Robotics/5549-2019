@@ -377,8 +377,8 @@ class MyRobot(wpilib.IterativeRobot):
                 self.rightSpeed = -rightAxis / 1.15
                 self.toggle = 2
             elif self.toggle == 2:
-                self.leftSpeed = self.cubicSpeed(self, leftAxis, 0)
-                self.rightSpeed = self.cubicSpeed(self, rightAxis, 1)
+                self.leftSpeed = self.cubicSpeed(leftAxis, 0)
+                self.rightSpeed = self.cubicSpeed(rightAxis, 1)
                 self.toggle = 0
 
         # controller mapping for omnom operation
