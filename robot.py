@@ -53,14 +53,6 @@ class MyRobot(wpilib.IterativeRobot):
         self.winch1 = wpilib.Spark(5)
         self.winch2 = wpilib.Spark(6)
         
-        # defining motor groups
-        self.left = wpilib.SpeedControllerGroup(self.frontLeftMotor, self.rearLeftMotor)
-        self.right = wpilib.SpeedControllerGroup(self.frontRightMotor, self.rearRightMotor)
-        
-        # setting up drive group for drive motors
-        self.drive = DifferentialDrive(self.left, self.right)
-        self.drive.setExpiration(0.1)
-        
         # defining omnom motor groups
         self.omnom_left = wpilib.SpeedControllerGroup(self.omnom_left_motor)
         self.omnom_right = wpilib.SpeedControllerGroup(self.omnom_right_motor)
@@ -91,11 +83,11 @@ class MyRobot(wpilib.IterativeRobot):
         # initialization of the limit switch
         self.limitSwitch = wpilib.DigitalInput(1)
         
-        # encoder initialization
-        self.encoder = wpilib.Encoder(0, 1)
-        
     def autonomousInit(self):
-        self.encoder.reset()
+        self.frontRightMotor.setQuadraturePosition(0,0)
+        self.rearRightMotor.setQuadraturePosition(0,0)
+        self.frontLeftMotor.setQuadraturePosition(0,0)
+        self.rearLeftMotor.setQuadraturePosition(0,0)
         """This function is run once each time the robot enters autonomous mode."""
         self.timer.reset()
         self.timer.start()
@@ -114,30 +106,54 @@ class MyRobot(wpilib.IterativeRobot):
         # basic autonomous function presets
         
         def stop_motor():
-            self.drive.tankDrive(0, 0)
+            self.frontRightMotor.set(WPI_TalonSRX.ControlMode.PercentOutput, 0, WPI_TalonSRX.DemandType.ArbitraryFeedForward, 0)
+            self.rearRightMotor.set(WPI_TalonSRX.ControlMode.PercentOutput, 0, WPI_TalonSRX.DemandType.ArbitraryFeedForward, 0)
+            self.frontLeftMotor.set(WPI_TalonSRX.ControlMode.PercentOutput, 0, WPI_TalonSRX.DemandType.ArbitraryFeedForward, 0)
+            self.rearLeftMotor.set(WPI_TalonSRX.ControlMode.PercentOutput, 0, WPI_TalonSRX.DemandType.ArbitraryFeedForward, 0)
         
         def straight_speed():
-            self.drive.tankDrive(0.75, 0.80)
+            self.frontRightMotor.set(WPI_TalonSRX.ControlMode.PercentOutput, .8, WPI_TalonSRX.DemandType.AuxPID, 0)
+            self.rearRightMotor.set(WPI_TalonSRX.ControlMode.PercentOutput, .8, WPI_TalonSRX.DemandType.AuxPID, 0)
+            self.frontLeftMotor.follow(self.frontRightMotor, WPI_TalonSRX.FollowerType.AuxOutput1)
+            self.rearLeftMotor.follow(self.rearRightMotor, WPI_TalonSRX.FollowerType.AuxOutput1)
             self.omnom_left.set(-0.1)
             self.omnom_right.set(0.1)
 
         def straight_slow_speed():
-            self.drive.tankDrive(0.5, 0.55)
+            self.frontRightMotor.set(WPI_TalonSRX.ControlMode.PercentOutput, .55, WPI_TalonSRX.DemandType.AuxPID, 0)
+            self.rearRightMotor.set(WPI_TalonSRX.ControlMode.PercentOutput, .55, WPI_TalonSRX.DemandType.AuxPID, 0)
+            self.frontLeftMotor.follow(self.frontRightMotor, WPI_TalonSRX.FollowerType.AuxOutput1)
+            self.rearLeftMotor.follow(self.rearRightMotor, WPI_TalonSRX.FollowerType.AuxOutput1)
 
         def straight_super_slow_speed():
-            self.drive.tankDrive(0.45, 0.45)
+            self.frontRightMotor.set(WPI_TalonSRX.ControlMode.PercentOutput, .45, WPI_TalonSRX.DemandType.AuxPID, 0)
+            self.rearRightMotor.set(WPI_TalonSRX.ControlMode.PercentOutput, .45, WPI_TalonSRX.DemandType.AuxPID, 0)
+            self.frontLeftMotor.follow(self.frontRightMotor, WPI_TalonSRX.FollowerType.AuxOutput1)
+            self.rearLeftMotor.follow(self.rearRightMotor, WPI_TalonSRX.FollowerType.AuxOutput1)
 
         def reverse_speed():
-            self.drive.tankDrive(-0.75, -0.75)
+            self.frontRightMotor.set(WPI_TalonSRX.ControlMode.PercentOutput, -.75, WPI_TalonSRX.DemandType.AuxPID, 0)
+            self.rearRightMotor.set(WPI_TalonSRX.ControlMode.PercentOutput, -.75, WPI_TalonSRX.DemandType.AuxPID, 0)
+            self.frontLeftMotor.follow(self.frontRightMotor, WPI_TalonSRX.FollowerType.AuxOutput1)
+            self.rearLeftMotor.follow(self.rearRightMotor, WPI_TalonSRX.FollowerType.AuxOutput1)
 
         def reverse_slow_speed():
-            self.drive.tankDrive(-0.5, -0.5)
+            self.frontRightMotor.set(WPI_TalonSRX.ControlMode.PercentOutput, -.5, WPI_TalonSRX.DemandType.AuxPID, 0)
+            self.rearRightMotor.set(WPI_TalonSRX.ControlMode.PercentOutput, -.5, WPI_TalonSRX.DemandType.AuxPID, 0)
+            self.frontLeftMotor.follow(self.frontRightMotor, WPI_TalonSRX.FollowerType.AuxOutput1)
+            self.rearLeftMotor.follow(self.rearRightMotor, WPI_TalonSRX.FollowerType.AuxOutput1)
 
         def left_turn_speed():
-            self.drive.tankDrive(-0.5, 0.5)
+            self.frontRightMotor.set(WPI_TalonSRX.ControlMode.PercentOutput, -.5, WPI_TalonSRX.DemandType.ArbitraryFeedForward, 0)
+            self.rearRightMotor.set(WPI_TalonSRX.ControlMode.PercentOutput, -.5, WPI_TalonSRX.DemandType.ArbitraryFeedForward, 0)
+            self.frontLeftMotor.set(WPI_TalonSRX.ControlMode.PercentOutput, .5, WPI_TalonSRX.DemandType.ArbitraryFeedForward, 0)
+            self.rearLeftMotor.set(WPI_TalonSRX.ControlMode.PercentOutput, .5, WPI_TalonSRX.DemandType.ArbitraryFeedForward, 0)
 
         def right_turn_speed():
-            self.drive.tankDrive(0.5, -0.5)
+            self.frontRightMotor.set(WPI_TalonSRX.ControlMode.PercentOutput, .5, WPI_TalonSRX.DemandType.ArbitraryFeedForward, 0)
+            self.rearRightMotor.set(WPI_TalonSRX.ControlMode.PercentOutput, .5, WPI_TalonSRX.DemandType.ArbitraryFeedForward, 0)
+            self.frontLeftMotor.set(WPI_TalonSRX.ControlMode.PercentOutput, -.5, WPI_TalonSRX.DemandType.ArbitraryFeedForward, 0)
+            self.rearLeftMotor.set(WPI_TalonSRX.ControlMode.PercentOutput, -.5, WPI_TalonSRX.DemandType.ArbitraryFeedForward, 0)
 
         def lift_activate():
             self.liftMotor.set(0.75)
@@ -150,7 +166,14 @@ class MyRobot(wpilib.IterativeRobot):
             self.omnom_right.set(0.5)
 
         def HansZeTransmissionBroke():
-            self.drive.tankDrive(0, 0)
+            self.frontRightMotor.set(WPI_TalonSRX.ControlMode.PercentOutput, 0, WPI_TalonSRX.DemandType.ArbitraryFeedForward, 0)
+            self.rearRightMotor.set(WPI_TalonSRX.ControlMode.PercentOutput, 0, WPI_TalonSRX.DemandType.ArbitraryFeedForward, 0)
+            self.frontLeftMotor.set(WPI_TalonSRX.ControlMode.PercentOutput, 0, WPI_TalonSRX.DemandType.ArbitraryFeedForward, 0)
+            self.rearLeftMotor.set(WPI_TalonSRX.ControlMode.PercentOutput, 0, WPI_TalonSRX.DemandType.ArbitraryFeedForward, 0)
+        
+        def distanceCalc():
+            distMeters = ((self.frontRightMotor.getQuadraturePosition() + self.frontLeftMotor.getQuadraturePosition())/2 / 4096) * #circumference#
+            return dist
 
         ##################################################################################
 
@@ -397,7 +420,10 @@ class MyRobot(wpilib.IterativeRobot):
         self.omnom.tankDrive(left_omnom_stick, right_omnom_stick)
 
         # drives drive system using tank steering
-        self.drive.tankDrive(-leftAxis / self.divisor, -rightAxis / self.divisor)
+        self.frontRightMotor.set(WPI_TalonSRX.ControlMode.PercentOutput, -rightAxis/ self.divisor, WPI_TalonSRX.DemandType.ArbitraryFeedForward, 0)
+        self.rearRightMotor.set(WPI_TalonSRX.ControlMode.PercentOutput, -rightAxis/ self.divisor, WPI_TalonSRX.DemandType.ArbitraryFeedForward, 0)
+        self.frontLeftMotor.set(WPI_TalonSRX.ControlMode.PercentOutput, -leftAxis/ self.divisor, WPI_TalonSRX.DemandType.ArbitraryFeedForward, 0)
+        self.rearLeftMotor.set(WPI_TalonSRX.ControlMode.PercentOutput, -leftAxis/ self.divisor, WPI_TalonSRX.DemandType.ArbitraryFeedForward, 0)
 
 
 if __name__ == '__main__':
