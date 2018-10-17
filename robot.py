@@ -37,10 +37,10 @@ class MyRobot(wpilib.IterativeRobot):
         """Robot initialization function"""
         
         # objects that handle basic drive operations
-        self.frontRightMotor = wpilib.Victor(0)
-        self.rearRightMotor = wpilib.Victor(1)
-        self.frontLeftMotor = wpilib.Victor(2)
-        self.rearLeftMotor = wpilib.Victor(3)
+        self.frontRightMotor = WPI_TalonSRX(0)
+        self.rearRightMotor = WPI_TalonSRX(1)
+        self.frontLeftMotor = WPI_TalonSRX(2)
+        self.rearLeftMotor = WPI_TalonSRX(3)
         
         # objects that handle basic intake operations
         self.omnom_left_motor = wpilib.Spark(7)
