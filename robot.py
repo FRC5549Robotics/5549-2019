@@ -9,6 +9,7 @@
 import wpilib
 from wpilib.drive import DifferentialDrive
 from wpilib import DriverStation
+from ctre import WPI_TalonSRX
 
 '''
 Logitech Joysticks
