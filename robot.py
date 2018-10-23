@@ -178,7 +178,7 @@ class MyRobot(wpilib.IterativeRobot):
         
         def distanceCalc():
             distMeters = ((self.frontRightMotor.getQuadraturePosition() + self.frontLeftMotor.getQuadraturePosition())/2 / 4096) * #circumference#
-            return dist
+            return distMeters
 
         ##################################################################################
 
