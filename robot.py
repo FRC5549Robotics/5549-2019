@@ -9,6 +9,7 @@
 import wpilib
 from wpilib.drive import DifferentialDrive
 from wpilib import DriverStation
+import math
 from ctre import WPI_TalonSRX
 
 '''
@@ -376,6 +377,18 @@ class MyRobot(wpilib.IterativeRobot):
 
         # the previous state of the joystick button
         # self.buttonWasHeld = False
+        
+        def self.cubicSpeed(self, axisValue, axisId):
+            if axisId = 0:
+                if axisValue > 0:
+                    return math.pow(-leftAxis - 1, (1/3)) + 1
+                elif axisValue < 0:
+                    return math.pow(leftAxis - 1, (1/3)) + 1
+            if axisId = 1:
+                if axisValue > 0:
+                    return math.pow(-rightAxis - 1, (1/3)) + 1
+                elif axisValue < 0:
+                    return math.pow(rightAxis - 1, (1/3)) + 1
 
     def teleopPeriodic(self):
         """Runs the motors with tank steering"""
@@ -388,10 +401,16 @@ class MyRobot(wpilib.IterativeRobot):
 
         if self.leftStick.getRawButton(1):
             if self.toggle == 0:
-                self.divisor = 2.0  # 2.0 for Ian   # 1.25 for Sam
+                self.leftSpeed = -leftAxis / 2.0  # 2.0 for Ian   # 1.25 for Sam
+                self.rightSpeed = -rightAxis / 2.0
                 self.toggle = 1
             elif self.toggle == 1:
-                self.divisor = 1.15  # 1.15 for Ian  # 2.0 for Sam
+                self.leftSpeed = -leftAxis / 1.15  # 1.15 for Ian  # 2.0 for Sam
+                self.rightSpeed = -rightAxis / 1.15
+                self.toggle = 2
+            elif self.toggle == 2:
+                self.leftSpeed = self.cubicSpeed(leftAxis, 0)
+                self.rightSpeed = self.cubicSpeed(rightAxis, 1)
                 self.toggle = 0
 
         # controller mapping for omnom operation
@@ -424,7 +443,7 @@ class MyRobot(wpilib.IterativeRobot):
         self.omnom.tankDrive(left_omnom_stick, right_omnom_stick)
 
         # drives drive system using tank steering
-        self.drive.tankDrive(-leftAxis / self.divisor, -rightAxis / self.divisor)
+        self.drive.tankDrive(self.leftSpeed, self.rightSpeed)
 
 
 if __name__ == '__main__':
