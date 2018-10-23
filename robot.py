@@ -377,6 +377,8 @@ class MyRobot(wpilib.IterativeRobot):
 
         # the previous state of the joystick button
         # self.buttonWasHeld = False
+
+    def teleopPeriodic(self):
         
         def self.cubicSpeed(self, axisValue, axisId):
             if axisId = 0:
@@ -389,8 +391,7 @@ class MyRobot(wpilib.IterativeRobot):
                     return math.pow(-rightAxis - 1, (1/3)) + 1
                 elif axisValue < 0:
                     return math.pow(rightAxis - 1, (1/3)) + 1
-
-    def teleopPeriodic(self):
+        
         """Runs the motors with tank steering"""
 
         # controller mapping for tank steering
@@ -411,6 +412,10 @@ class MyRobot(wpilib.IterativeRobot):
             elif self.toggle == 2:
                 self.leftSpeed = self.cubicSpeed(leftAxis, 0)
                 self.rightSpeed = self.cubicSpeed(rightAxis, 1)
+                self.toggle = 3
+            elif self.toggle == 3:
+                self.leftSpeed = -(leftAxis+rightAxis+2)/4)*(abs(leftAxis)/leftAxis)
+                self.rightSpeed = -(rightAxis+leftAxis+2)/4)*(abs(rightAxis)/rightAxis)
                 self.toggle = 0
 
         # controller mapping for omnom operation
