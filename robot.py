@@ -1,58 +1,22 @@
-'''
-    2018 code for Team 5549 Gryphon Robotics. Used for Power Up season.
-    This contains the necessary code to drive using tank-steering and
-    enables the use of attachments (omnom, lift, climb) with basic
-    autonomous procedures.
-'''
-
-# This robot dispenses the cubes. Compared to him, you are nothing.
 import wpilib
-from wpilib.drive import DifferentialDrive
-from wpilib import DriverStation
-from ctre import *
+import logging
 from math import *
+from wpilib.drive import DifferentialDrive
+from wpilib import SmartDashboard
+from networktables import NetworkTables
+from ctre import *
 
-'''
-Logitech Joysticks
-    Joystick 0 --> left motors(red label)
-    Joystick 1 --> right motors(green label)
-Xbox 360 Controller
-    Joystick 0 --> attachment control
-
-AXIS MAPPING
-    0 - X-Axis (left)   |   4 - X-Axis (right)
-    1 - Y-Axis (left)   |   5 - Y-Axis (right)
-    2 - Trigger (left)  |
-    3 - Trigger (right) |
-
-BUTTON MAPPING 
-    1 - A   |   5 - Bumper (left)  
-    2 - B   |   6 - Bumper (right)  
-    3 - X   |   7 - Back            
-    4 - Y   |   8 - Start           
-'''
-
-
-class MyRobot(wpilib.IterativeRobot):
-
+class MyRobot(wpilib.TimedRobot):
     def robotInit(self):
-        """Robot initialization function"""
+        self.frontRightMotor = WPI_TalonSRX(1)
+        self.rearRightMotor = WPI_TalonSRX(2)
+        self.frontLeftMotor = WPI_TalonSRX(3)
+        self.rearLeftMotor = WPI_TalonSRX(4)
 
-        # object that handles basic drive operations
-        self.frontRightMotor = WPI_TalonSRX(0)
-        self.rearRightMotor = WPI_TalonSRX(1)
-        self.frontLeftMotor = WPI_TalonSRX(2)
-        self.rearLeftMotor = WPI_TalonSRX(3)
-
-        # Lift motors
-        self.motorTopRight = wpilib.Victor(0)
-        self.motorTopLeft = wpilib.Victor(1)
-        self. motorBottomRight = wpilib.Victor(2)
-        self. motorBottomLeft = wpilib.Victor(3)
-
-        # object that handles basic intake operations
-        self.omnom_left_motor = wpilib.Spark(7)
-        self.omnom_right_motor = wpilib.Spark(8)
+        self.right_encoder = self.rearRightMotor
+        self.left_encoder = self.frontLeftMotor
+        self.P = 0.1
+        self.setpoint = 10000
 
         # defining motor groups
         self.left = wpilib.SpeedControllerGroup(self.frontLeftMotor, self.rearLeftMotor)
@@ -62,6 +26,10 @@ class MyRobot(wpilib.IterativeRobot):
         self.drive = DifferentialDrive(self.left, self.right)
         self.drive.setExpiration(0.1)
 
+        # object that handles basic intake operations
+        self.omnom_left_motor = wpilib.Spark(7)
+        self.omnom_right_motor = wpilib.Spark(8)
+
         # defining omnom motor groups
         self.omnom_left = wpilib.SpeedControllerGroup(self.omnom_left_motor)
         self.omnom_right = wpilib.SpeedControllerGroup(self.omnom_right_motor)
@@ -70,346 +38,104 @@ class MyRobot(wpilib.IterativeRobot):
         self.omnom = DifferentialDrive(self.omnom_left, self.omnom_right)
         self.omnom.setExpiration(0.1)
 
-        # defines timer for autonomous
-        self.timer = wpilib.Timer()
+        # Lift motors
+        self.motorTopRight = wpilib.Victor(0)
+        self.motorTopLeft = wpilib.Victor(1)
+        self.motorBottomRight = wpilib.Victor(2)
+        self.motorBottomLeft = wpilib.Victor(3)
+
+        # lift motor groups
+        self.lift_group = wpilib.SpeedControllerGroup(self.motorTopRight, self.motorTopLeft, self.motorBottomLeft, self.motorBottomRight)
 
         # joystick 0, 1, 2 on the driver station
         self.leftStick = wpilib.Joystick(0)
         self.rightStick = wpilib.Joystick(1)
         self.stick = wpilib.Joystick(2)
 
-        # initialization of the FMS
-        self.DS = DriverStation.getInstance()
-        self.PS = DriverStation.getInstance()
+        logging.basicConfig(level=logging.DEBUG)
+        self.sd = NetworkTables.getTable('SmartDashboard')
+        NetworkTables.initialize(server='10.55.49.2')
 
-        # initialization of the camera server
+        self.timer = wpilib.Timer()
+
+        self.pdp = wpilib.PowerDistributionPanel()
+        self.robocontroller = wpilib.RobotController()
+
+        self.DS = wpilib.DriverStation.getInstance()
+
+        # initialization of the HTTP camera
         wpilib.CameraServer.launch()
 
-        # initialization of the gyroscope
-        self.gyro = wpilib.ADXRS450_Gyro()
-        self.gyro.calibrate()
-
-        # initialization of the limit switch
-        self.limitSwitch = wpilib.DigitalInput(1)
-
-        # initialization of the lift encoder
-        self.liftEncoder = wpilib.Encoder(8, 9, False, 1)
-
-        # Hall-Effect Sensor
-        self.hall = wpilib.DigitalInput(2)
-
     def autonomousInit(self):
-        """This function is run once each time the robot enters autonomous mode."""
-        self.timer.reset()
-        self.timer.start()
-
-        self.liftEncoder.reset()
-        self.gyro.reset()
-        self.rightTargetHeading = -(self.gyro.getAngle() + 90.0)
-        self.leftTargetHeading = -(self.gyro.getAngle() - 90.0)
-
         self.frontLeftMotor.setQuadraturePosition(0, 0)
         self.rearRightMotor.setQuadraturePosition(0, 0)
 
     def autonomousPeriodic(self):
-        """This function is called periodically during autonomous."""
-        # gets randomization of field elements
-        gameData = self.DS.getGameSpecificMessage()
-        # gets location of robot on the field
-        position = self.PS.getLocation()
-
-        def stop_motor():
-            self.drive.tankDrive(0, 0)
-
-        def straight_slow_speed():
-            self.drive.tankDrive(0.5, 0.5)
-
-
-        def straight_super_slow_speed():
-            self.drive.tankDrive(0.45, 0.45)
-
-        def left_turn_speed():
-            self.drive.tankDrive(-0.5, 0.5)
-
-        def right_turn_speed():
-            self.drive.tankDrive(0.5, -0.5)
-
-        def lift_activate():
-            self.motorTopRight.set(0.2) #0.25
-            self.motorTopLeft.set(0.2)
-            self.motorBottomRight.set(0.2)
-            self.motorBottomLeft.set(0.2)
-
-        def lift_stop():
-            self.motorTopRight.set(0)
-            self.motorTopLeft.set(0)
-            self.motorBottomRight.set(0)
-            self.motorBottomLeft.set(0)
-
-        def lift_hold():
-            self.motorTopRight.set(0.05)
-            self.motorTopLeft.set(0.05)
-            self.motorBottomRight.set(0.05)
-            self.motorBottomLeft.set(0.05)
-        '''
-        def lift_lower():
-            self.motorTopRight.set(0.1)
-            self.motorTopLeft.set(0.1)
-            self.motorBottomRight.set(0.1)
-            self.motorBottomLeft.set(0.1)
-        '''
-
-        def dispense_cube():
-            self.omnom_left.set(-0.7)
-            self.omnom_right.set(0.7)
-
-        ##################################################################################
-
-        # Autonomous functions
-
-        def left_switch():
-            if self.timer.get() <= 4.5:
-                straight_slow_speed()
-            elif 6.0 <= self.timer.get() <= 8.0:
-                if self.gyro.getAngle() > self.rightTargetHeading:
-                    right_turn_speed()
-                    if self.gyro.getAngle() <= self.rightTargetHeading:
-                        stop_motor()
-            elif 8.0 < self.timer.get() < 10.0:
-                if self.limitSwitch.get() is False:  # check True/False value
-                    straight_super_slow_speed()
-                else:
-                    stop_motor()
-            elif 10.0 < self.timer.get() < 11.5:
-                lift_activate()
-            elif 12.5 < self.timer.get() < 13.0:
-                lift_stop()
-                dispense_cube()
-
-        def right_switch():
-            if self.timer.get() <= 4.5:
-                straight_slow_speed()
-            elif 6.0 <= self.timer.get() <= 8.0:
-                if self.gyro.getAngle() < self.leftTargetHeading:
-                    left_turn_speed()
-                    if self.gyro.getAngle() >= self.leftTargetHeading:
-                        stop_motor()
-            elif 8.0 < self.timer.get() < 10.0:
-                if self.limitSwitch.get() is False:  # check True/False value
-                    straight_super_slow_speed()
-                else:
-                    stop_motor()
-            elif 10.0 < self.timer.get() < 11.5:
-                lift_activate()
-            elif 12.5 < self.timer.get() < 13.0:
-                lift_stop()
-                dispense_cube()
-
-        def center_straight():
-            if self.timer.get() < 3.0:
-                straight_slow_speed()
-            elif self.timer.get() > 3.0:
-                stop_motor()
-
-        def center_switch():
-            if self.timer.get() < 3.0:
-                straight_slow_speed()
-            elif 3.5 < self.timer.get() < 4.0:
-                lift_activate()
-            elif 5.0 < self.timer.get() < 5.5:
-                #lift_lower()
-                dispense_cube()
-
-        def straight():
-            if self.timer.get() < 3.5:
-                straight_slow_speed()
-            elif self.timer.get() > 3.5:
-                stop_motor()
-
-
-        ''' Tests '''
-        def turn_test():
-            if self.timer.get() <= 6.0:
-                if self.gyro.getAngle() < self.leftTargetHeading:
-                    left_turn_speed()
-                    if self.gyro.getAngle() >= self.leftTargetHeading:
-                        stop_motor()
-
-        '''
-        def lift_test():
-            if self.liftEncoder.get() <= 200:
-                lift_activate()
-            elif self.liftEncoder.get() > 200 and self.hall.get() == True:
-                    lift_stop()
-            elif self.liftEncoder.get() <= 0 and self.hall.get() == False:
-                    self.liftEncoder.reset()
-        '''
-        #Paul's test
-        def lift_test():
-            if self.hall.get == False:
-                lift_activate()
-            elif self.liftEncoder.get() == 200 and self.hall.get == True:
-                lift_stop()
-            elif self.hall.get == False:
-                self.liftEncoder.reset()
-
-
+        def pid():
+            self.rightPos = fabs(self.rearRightMotor.getQuadraturePosition())
+            self.leftPos = fabs(self.frontLeftMotor.getQuadraturePosition())
+            error = self.setpoint - ((self.leftPos + self.rightPos) / 2)
+            self.rcw = self.P * error
+            self.drive.arcadeDrive(0.3, self.rcw)
 
         def encoder_test():
             self.rightPos = fabs(self.rearRightMotor.getQuadraturePosition())
             self.leftPos = fabs(self.frontLeftMotor.getQuadraturePosition())
             self.distIn = (((self.leftPos + self.rightPos) / 2) / 4096) * 18.84955
-            if 0 <= self.distIn <= 36:
-                self.drive.tankDrive(0.3, 0.3)
+            if 0 <= self.distIn <= 72:
+                self.drive.tankDrive(0.5, 0.5)
             else:
                 self.drive.tankDrive(0, 0)
 
+        def auto_checkup():
+            pass
 
-        """
-        (Below) Test auto methods. Use during troubleshooting
-        def gyro_test():
-            if self.timer.get() < 2.0:
-                if self.gyro.getAngle() >= self.targetHeading:
-                    right_turn_speed()
-                    if self.gyro.getAngle() < self.targetHeading:
-                        stop_motor()
+        if self.DS.getGameSpecificMessage() == "RRR":
+            encoder_test()
+        elif self.DS.getGameSpecificMessage() == "ACT":
+            auto_checkup()
 
-        def limit_switch_test():
-            if self.timer.get() < 10.0:
-                if self.limitSwitch.get() is True:
-                    straight_super_slow_speed()
-                else:
-                    stop_motor()
-        """
-
-        ##################################################################################
-
-        # L-L-R
-        if gameData == "LLR" and position == 1:
-            left_switch()
-        elif gameData == "LLR" and position == 2:
-            center_straight()
-        elif gameData == "LLR" and position == 3:
-            straight()
-
-        # L-R-L
-        elif gameData == "LRL" and position == 1:
-            left_switch()
-        elif gameData == "LRL" and position == 2:
-            center_straight()
-        elif gameData == "LRL" and position == 3:
-            straight()
-
-        # R-L-L
-        elif gameData == "RLL" and position == 1:
-            straight()
-        elif gameData == "RLL" and position == 2:
-            center_straight()
-        elif gameData == "RLL" and position == 3:
-            right_switch()
-
-        # R-L-R
-        elif gameData == "RLR" and position == 1:
-            straight()
-        elif gameData == "RLR" and position == 2:
-            center_straight()
-        elif gameData == "RLR" and position == 3:
-            right_switch()
-
-
-
-        # R-R-R
-        elif gameData == "RRR" and position == 1:
-            straight()
-        elif gameData == "RRR" and position == 2:
-            center_straight()
-        elif gameData == "RRR" and position == 3:
-            lift_test()      #right switch
-
-        # L-L-L
-        elif gameData == "LLL" and position == 1:
-            left_switch()
-        elif gameData == "LLL" and position == 2:
-            center_straight()
-        elif gameData == "LLL" and position == 3:
-            straight()
-
-        # Other situations
-        else:
-            straight()
 
     def teleopInit(self):
-        """Executed at the start of teleop mode"""
         self.drive.setSafetyEnabled(True)
-
-        self.liftEncoder.reset()
-
-        # toggles for speed control
-        self.toggle = 0
-
-        # divisors that divide robot speed
-        self.divisor = 1.15  # 1.15 Ian  # 2.0 for Sam
 
         self.rearRightMotor.setQuadraturePosition(0, 0)
         self.frontLeftMotor.setQuadraturePosition(0, 0)
 
     def teleopPeriodic(self):
-        """Runs the motors with tank steering"""
 
-        # # lift encoder reset
-        # if self.hall.get() == False:
-        #     self.liftEncoder.reset()
+        # SmartDashboard
+        SmartDashboard.putNumber("Temperature ", self.pdp.getTemperature())
+        SmartDashboard.putNumber("Battery Voltage ", self.robocontroller.getBatteryVoltage())
+        SmartDashboard.putNumber("Browned Out? ", self.robocontroller.isBrownedOut())
+        SmartDashboard.putNumber("Channel 8", self.pdp.getCurrent(8))
+        SmartDashboard.putNumber("Channel 9", self.pdp.getCurrent(9))
+        SmartDashboard.putNumber("Current 10", self.pdp.getCurrent(10))
+        SmartDashboard.putNumber("Channel 11", self.pdp.getCurrent(11))
+        SmartDashboard.putNumber("Match Time", self.DS.getMatchTime())
 
-        # controller mapping for tank steering
-        leftAxis = self.leftStick.getRawAxis(1)
-        rightAxis = self.rightStick.getRawAxis(1)
-
-        # speed control
-
-        if self.leftStick.getRawButton(1):
-            if self.toggle == 0:
-                self.divisor = 1.25  # 2.0 for Ian   # 1.25 for Sam
-                self.toggle = 1
-            elif self.toggle == 1:
-                self.divisor = 2.0  # 1.15 for Ian  # 2.0 for Sam
-                self.toggle = 0
-
-        # controller mapping for omnom operation
-
-        left_omnom_stick = self.stick.getRawAxis(1) / 1.25
-        right_omnom_stick = self.stick.getRawAxis(5) / 1.25
-
-        # lift controller mapping with relative speed
+        # lift controller mapping
 
         if self.stick.getRawAxis(3):
-            self.motorTopRight.set(self.stick.getRawAxis(3)/1.5)
-            self.motorTopLeft.set(self.stick.getRawAxis(3)/1.5)
-            self.motorBottomRight.set(self.stick.getRawAxis(3)/1.5)
-            self.motorBottomLeft.set(self.stick.getRawAxis(3)/1.5)
-
+            self.lift_group.set(self.stick.getRawAxis(3) / 1.5)
         elif self.stick.getRawAxis(2):
-            self.motorTopRight.set(self.stick.getRawAxis(2)/40)
-            self.motorTopLeft.set(self.stick.getRawAxis(2)/40)
-            self.motorBottomRight.set(self.stick.getRawAxis(2)/40)
-            self.motorBottomLeft.set(self.stick.getRawAxis(2)/40)
-
+            self.lift_group.set(self.stick.getRawAxis(2) / 40)
         elif self.stick.getRawButton(5):
-            self.motorTopRight.set(self.stick.getRawButton(5)/20)
-            self.motorTopLeft.set(self.stick.getRawButton(5)/20)
-            self.motorBottomRight.set(self.stick.getRawButton(5)/20)
-            self.motorBottomLeft.set(self.stick.getRawButton(5)/20)
+            self.lift_group.set(self.stick.getRawButton(5) / 20)
         else:
-            self.motorTopRight.set(0)
-            self.motorTopLeft.set(0)
-            self.motorBottomRight.set(0)
-            self.motorBottomLeft.set(0)
+            self.lift_group.set(0)
+
+        left_omnom_stick = self.stick.getRawAxis(5) / 1.25
+        right_omnom_stick = self.stick.getRawAxis(1) / 1.25
 
         # drives intake system using tank steering
         self.omnom.tankDrive(left_omnom_stick, right_omnom_stick)
 
-        # drives drive system using tank steering
-        self.drive.tankDrive(-leftAxis / self.divisor, -rightAxis / self.divisor)
+        leftAxis = self.stick.getRawAxis(1)
+        rightAxis = self.stick.getRawAxis(5)
 
+        # drives drive system using tank steering
+        self.drive.tankDrive(-leftAxis / 1.50, -rightAxis / 1.50)
 
 if __name__ == '__main__':
     wpilib.run(MyRobot)

@@ -1,8 +1,5 @@
 [
-  "pyfrc_test.py::test_autonomous[RRR]",
-  "pyfrc_test.py::test_autonomous[RLR]",
-  "pyfrc_test.py::test_autonomous[LRL]",
-  "pyfrc_test.py::test_autonomous[LLL]",
+  "pyfrc_test.py::test_autonomous[]",
   "pyfrc_test.py::test_disabled",
   "pyfrc_test.py::test_operator_control",
   "pyfrc_test.py::test_practice",
