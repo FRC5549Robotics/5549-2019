@@ -60,8 +60,8 @@ class MyRobot(wpilib.TimedRobot):
 
         self.pdp = wpilib.PowerDistributionPanel()
         self.robocontroller = wpilib.RobotController()
-
         self.DS = wpilib.DriverStation.getInstance()
+        self.timer = wpilib.Timer()
 
         # initialization of the HTTP camera
         wpilib.CameraServer.launch()
@@ -95,7 +95,6 @@ class MyRobot(wpilib.TimedRobot):
         elif self.DS.getGameSpecificMessage() == "ACT":
             auto_checkup()
 
-
     def teleopInit(self):
         self.drive.setSafetyEnabled(True)
 
@@ -103,19 +102,37 @@ class MyRobot(wpilib.TimedRobot):
         self.frontLeftMotor.setQuadraturePosition(0, 0)
 
     def teleopPeriodic(self):
+        # smart dashboard diagnostics
+        self.sd.putString("", "Diagnostics")
+        self.sd.putNumber("Temperature: ", self.pdp.getTemperature())
+        self.sd.putNumber("Battery Voltage: ", self.robocontroller.getBatteryVoltage())
+        self.sd.putBoolean(" Browned Out?", self.robocontroller.isBrownedOut())
+        self.sd.putBoolean(" Autonomous?", self.DS.isAutonomous())
+        self.sd.putBoolean(" FMS Connection", self.DS.isFMSAttached())
+        self.sd.putNumber("Average Encoder Speed: ", self.rearRightMotor.getQuadratureVelocity())
 
-        # SmartDashboard
-        SmartDashboard.putNumber("Temperature ", self.pdp.getTemperature())
-        SmartDashboard.putNumber("Battery Voltage ", self.robocontroller.getBatteryVoltage())
-        SmartDashboard.putNumber("Browned Out? ", self.robocontroller.isBrownedOut())
-        SmartDashboard.putNumber("Channel 8", self.pdp.getCurrent(8))
-        SmartDashboard.putNumber("Channel 9", self.pdp.getCurrent(9))
-        SmartDashboard.putNumber("Current 10", self.pdp.getCurrent(10))
-        SmartDashboard.putNumber("Channel 11", self.pdp.getCurrent(11))
-        SmartDashboard.putNumber("Match Time", self.DS.getMatchTime())
+        self.sd.putString(" ", "Match Info")
+        self.sd.putString("Event Name: ", self.DS.getEventName())
+        self.sd.putNumber("Match Time: ", self.timer.getMatchTime())
+        self.sd.putNumber("Match Number: ", self.DS.getMatchTime())
+        self.sd.putNumber("Location: ", self.DS.getLocation())
+        if self.DS.getMatchType() == 3:
+            self.sd.putString("Match Type: ", "Elimination")
+        elif self.DS.getMatchType() == 1:
+            self.sd.putString("Match Type: ", "Practice")
+        elif self.DS.getMatchType() == 2:
+            self.sd.putString("Match Type: ", "Qualification")
+        else:
+            self.sd.putString("Match Type: ", "None")
+
+        if self.DS.getAlliance() == 0:
+            self.sd.putString("Alliance: ", "Red")
+        elif self.DS.getAlliance() == 1:
+            self.sd.putString("Alliance: ", "Blue")
+        else:
+            self.sd.putString("Alliance: ", "Invalid")
 
         # lift controller mapping
-
         if self.stick.getRawAxis(3):
             self.lift_group.set(self.stick.getRawAxis(3) / 1.5)
         elif self.stick.getRawAxis(2):
@@ -131,11 +148,12 @@ class MyRobot(wpilib.TimedRobot):
         # drives intake system using tank steering
         self.omnom.tankDrive(left_omnom_stick, right_omnom_stick)
 
-        leftAxis = self.stick.getRawAxis(1)
-        rightAxis = self.stick.getRawAxis(5)
+        rightAxis = self.rightStick.getRawAxis(1)
+        leftAxis = self.leftStick.getRawAxis(1)
 
         # drives drive system using tank steering
         self.drive.tankDrive(-leftAxis / 1.50, -rightAxis / 1.50)
+
 
 if __name__ == '__main__':
     wpilib.run(MyRobot)
