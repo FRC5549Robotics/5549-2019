@@ -26,7 +26,7 @@ class MyRobot(wpilib.TimedRobot):
 
         ''' NavX '''
         self.ahrs = AHRS.create_spi()
-
+        '''
         turnController = wpilib.PIDController(self.kP, self.kI, self.kD, self.kF, self.ahrs, output=self)
         turnController.setInputRange(-180.0, 180.0)
         turnController.setOutputRange(-0.6, 0.6)
@@ -34,6 +34,7 @@ class MyRobot(wpilib.TimedRobot):
         turnController.setContinuous(True)
         self.turnController = turnController
         self.rotateToAngleRate = 0
+        '''
 
         ''' Talon SRX Initialization '''
         # drive train motors
@@ -80,15 +81,13 @@ class MyRobot(wpilib.TimedRobot):
         self.rightStick = wpilib.Joystick(1)
         self.xbox = wpilib.Joystick(2)
 
-
         ''' Pneumatic Initialization '''
         self.Compressor = wpilib.Compressor(0)
         self.Compressor.setClosedLoopControl(True)
         self.enable = self.Compressor.getPressureSwitchValue()
-        self.DoubleSolenoidOne = wpilib.DoubleSolenoid(0, 1)
-        self.DoubleSolenoidTwo = wpilib.DoubleSolenoid(2, 3)
-        self.DoubleSolenoidThree = wpilib.DoubleSolenoid(4, 5)
-        self.SolenoidFan = wpilib.Solenoid(7)
+        self.DoubleSolenoidOne = wpilib.DoubleSolenoid(0, 1)    # gear shifting
+        self.DoubleSolenoidTwo = wpilib.DoubleSolenoid(2, 3)    # hatch panel claw
+        self.DoubleSolenoidThree = wpilib.DoubleSolenoid(4, 5)  # hatch panel ejection
         self.Compressor.start()
 
         # connection for logging & Smart Dashboard
@@ -109,27 +108,35 @@ class MyRobot(wpilib.TimedRobot):
     def autonomousInit(self):
         ''' Executed each time the robot enters autonomous. '''
 
-        # encoder reset
+        # timer config
+        self.timer.reset()
+        self.timer.start()
+
+        # drive train encoder reset
+        self.rightEncoder.setQuadraturePosition(0, 0)
+        self.leftEncoder.setQuadraturePosition(0, 0)
+
+        # NavX reset
+        self.ahrs.reset()
 
     def autonomousPeriodic(self):
         ''' Called periodically during autonomous. '''
 
         def breakIn():
             if self.timer.get() <= 600:
-                self.drive.tankDrive(1, 1)
+                self.drive.tankDrive(1.0, 1.0)
             else:
                 self.drive.tankDrive(0, 0)
 
         def encoder_test():
-            self.rightPos = fabs(self.rearRightMotor.getQuadraturePosition())
-            self.leftPos = fabs(self.frontLeftMotor.getQuadraturePosition())
+            self.rightPos = fabs(self.rightEncoder.getQuadraturePosition())
+            self.leftPos = fabs(self.leftEncoder.getQuadraturePosition())
             self.distIn = (((self.leftPos + self.rightPos) / 2) / 4096) * 18.84955
             if 0 <= self.distIn <= 72:
                 self.drive.tankDrive(0.5, 0.5)
             else:
                 self.drive.tankDrive(0, 0)
 
-        '''navx stuff'''
         def navxTest():
             if abs(self.ahrs.getAngle()) < 90.0:
                 self.drive.tankDrive(0.6, -0.6)
@@ -143,15 +150,18 @@ class MyRobot(wpilib.TimedRobot):
         ''' Executed at the start of teleop mode. '''
         self.drive.setSafetyEnabled(True)
 
-        # encoder reset
+        # drive train encoder reset
+        self.rightEncoder.setQuadraturePosition(0, 0)
+        self.leftEncoder.setQuadraturePosition(0, 0)
 
-        ''' NavX Reset '''
+        # NavX reset
         self.ahrs.reset()
 
     def teleopPeriodic(self):
         ''' Periodically executes methods during the teleop mode. '''
 
         ''' NavX Control '''
+        '''
         self.sd.putNumber("Gyro angle: ", self.ahrs.getAngle())
         rotateToAngle = False
         if self.xbox.getRawButton(7):
@@ -175,6 +185,7 @@ class MyRobot(wpilib.TimedRobot):
         else:
             self.turnController.disable()
             currentRotationRate = self.xbox.getX()
+        '''
 
         ''' Smart Dashboard '''
         # Smart Dashboard diagnostics
@@ -218,40 +229,50 @@ class MyRobot(wpilib.TimedRobot):
             self.sd.putString("Alliance: ", "Invalid")
 
         ''' Pneumatics Control '''
+        # compressor
+        if self.xbox.getRawButton(9):
+            self.Compressor.stop()
+        elif self.xbox.getRawButton(10):
+            self.Compressor.start()
+
         # gear shifting
         if self.rightStick.getRawButton(1):  # shift right
             self.DoubleSolenoidOne.set(wpilib.DoubleSolenoid.Value.kForward)
         elif self.leftStick.getRawButton(1):  # shift left
             self.DoubleSolenoidOne.set(wpilib.DoubleSolenoid.Value.kReverse)
 
-        # hatch panel control
-        if self.rightStick.getRawButton(12):  # shift right
+        # hatch panel claw
+        if self.rightStick.getRawButton(12):  # open claw
             self.DoubleSolenoidTwo.set(wpilib.DoubleSolenoid.Value.kForward)
-        elif self.rightStick.getRawButton(11):  # shift left
+        elif self.rightStick.getRawButton(11):  # close claw
             self.DoubleSolenoidTwo.set(wpilib.DoubleSolenoid.Value.kReverse)
 
         # hatch panel ejection
-        if self.leftStick.getRawButton(12):  # shift right
+        if self.leftStick.getRawButton(12):  # eject
             self.DoubleSolenoidThree.set(wpilib.DoubleSolenoid.Value.kForward)
-        elif self.leftStick.getRawButton(11):  # shift left
+        elif self.leftStick.getRawButton(11):  # deject
             self.DoubleSolenoidThree.set(wpilib.DoubleSolenoid.Value.kReverse)
 
         ''' Victor SPX (Lift, Lift Arm, Cargo) '''
         # lift control
-        if self.xbox.getRawButton(1):
-            self.lift.set(0.5)
+        if self.xbox.getRawAxis(3):
+            self.lift.set(self.xbox.getRawAxis(3) / 2.0)
+        elif self.xbox.getRawAxis(2):
+            self.lift.set(0.25)
         else:
             self.lift.set(0)
 
         # lift arm control
-        if self.xbox.getRawButton(2):
-            self.liftArm.set(0.4)
+        if self.xbox.getRawAxis(5):
+            self.liftArm.set(self.xbox.getRawAxis(5) / 2.0)
         else:
             self.liftArm.set(0)
 
         # cargo intake control
-        if self.xbox.getRawButton(3):
-            self.cargo.set(0.5)
+        if self.xbox.getRawAxis(1):
+            self.cargo.set(self.xbox.getRawButton(1) / 1.5)
+        elif self.xbox.getRawButton(4):
+            self.cargo.set(-self.xbox.getRawButton(1) / 1.5)
         else:
             self.cargo.set(0)
 
