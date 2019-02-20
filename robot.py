@@ -9,7 +9,6 @@ from wpilib.drive import DifferentialDrive
 from wpilib import SmartDashboard
 from networktables import NetworkTables
 from ctre import *
-from navx import AHRS
 
 
 class MyRobot(wpilib.TimedRobot):
@@ -25,7 +24,7 @@ class MyRobot(wpilib.TimedRobot):
         ''' Initialization of robot objects. '''
 
         ''' NavX '''
-        self.ahrs = AHRS.create_spi()
+        #self.ahrs = AHRS.create_spi()
         '''
         turnController = wpilib.PIDController(self.kP, self.kI, self.kD, self.kF, self.ahrs, output=self)
         turnController.setInputRange(-180.0, 180.0)
@@ -38,15 +37,20 @@ class MyRobot(wpilib.TimedRobot):
 
         ''' Talon SRX Initialization '''
         # drive train motors
-        self.frontRightMotor = WPI_TalonSRX(3)
-        self.rearRightMotor = WPI_TalonSRX(2)
-        self.frontLeftMotor = WPI_TalonSRX(0)
-        self.rearLeftMotor = WPI_TalonSRX(1)
+        self.frontRightMotor = WPI_TalonSRX(4)
+        self.rearRightMotor = WPI_TalonSRX(3)
+        self.frontLeftMotor = WPI_TalonSRX(1)
+        self.rearLeftMotor = WPI_TalonSRX(2)
 
+        '''Encoders'''
         # drive train encoders
         self.rightEncoder = self.frontRightMotor
         self.leftEncoder = self.frontLeftMotor
 
+        # lift encoders
+        self.liftEncoder = wpilib.Encoder(8, 9)
+
+        '''Motor Groups'''
         # drive train motor groups
         self.left = wpilib.SpeedControllerGroup(self.frontLeftMotor, self.rearLeftMotor)
         self.right = wpilib.SpeedControllerGroup(self.frontRightMotor, self.rearRightMotor)
@@ -57,23 +61,17 @@ class MyRobot(wpilib.TimedRobot):
 
         ''' Victor SPX Initialization '''
         # lift motors
-        self.liftOne = WPI_VictorSPX(0)
-        self.liftTwo = WPI_VictorSPX(1)
+        self.liftOne = WPI_VictorSPX(1)
+        self.liftTwo = WPI_VictorSPX(2)
         self.lift = wpilib.SpeedControllerGroup(self.liftOne, self.liftTwo)
 
         # lift arm motors
-        self.liftArmOne = WPI_VictorSPX(2)
-        self.liftArmTwo = WPI_VictorSPX(3)
+        self.liftArmOne = WPI_VictorSPX(3)
+        self.liftArmTwo = WPI_VictorSPX(4)
         self.liftArm = wpilib.SpeedControllerGroup(self.liftArmOne, self.liftArmTwo)
 
         # cargo intake motor
-        self.cargo = WPI_VictorSPX(4)
-
-        #lift encoders
-        self.liftEncoder = self.liftOne
-
-        #lift arm encoders
-        self.liftArmEncoder = self.liftArmOne
+        self.cargo = WPI_VictorSPX(5)
 
         ''' Controller Initialization '''
         # joystick - 0, 1 | controller - 2
@@ -95,6 +93,7 @@ class MyRobot(wpilib.TimedRobot):
         self.sd = NetworkTables.getTable('SmartDashboard')
         NetworkTables.initialize(server='10.55.49.2')
 
+        # Timer
         self.timer = wpilib.Timer()
 
         # Smart Dashboard classes
@@ -117,11 +116,12 @@ class MyRobot(wpilib.TimedRobot):
         self.leftEncoder.setQuadraturePosition(0, 0)
 
         # NavX reset
-        self.ahrs.reset()
+        #self.ahrs.reset()
 
     def autonomousPeriodic(self):
         ''' Called periodically during autonomous. '''
 
+        '''Test Methods'''
         def breakIn():
             if self.timer.get() <= 600:
                 self.drive.tankDrive(1.0, 1.0)
@@ -137,17 +137,29 @@ class MyRobot(wpilib.TimedRobot):
             else:
                 self.drive.tankDrive(0, 0)
 
+        def liftTest():
+            if self.liftEncoder.get() <= 415:
+                self.lift.set(0.5)
+            elif self.liftEncoder.get() >= 415:
+                self.lift.set(0.05)
+            else:
+                self.lift.set(0)
+
         def navxTest():
             if abs(self.ahrs.getAngle()) < 90.0:
                 self.drive.tankDrive(0.6, -0.6)
             else:
                 self.drive.tankDrive(0, 0)
 
+        def Pressure():
+            self.Compressor.start()
+
         if self.DS.getGameSpecificMessage() == "RRR":
-            breakIn()
+            liftTest()
 
     def teleopInit(self):
         ''' Executed at the start of teleop mode. '''
+
         self.drive.setSafetyEnabled(True)
 
         # drive train encoder reset
@@ -155,7 +167,10 @@ class MyRobot(wpilib.TimedRobot):
         self.leftEncoder.setQuadraturePosition(0, 0)
 
         # NavX reset
-        self.ahrs.reset()
+        # self.ahrs.reset()
+
+        # lift encoder rest
+        self.liftEncoder.reset()
 
     def teleopPeriodic(self):
         ''' Periodically executes methods during the teleop mode. '''
@@ -187,26 +202,15 @@ class MyRobot(wpilib.TimedRobot):
             currentRotationRate = self.xbox.getX()
         '''
 
-        ''' Smart Dashboard '''
-        # Smart Dashboard diagnostics
+        ''' Smart Dashboard Tests'''
+        '''
         self.sd.putString("", "Diagnostics")
         self.sd.putNumber("Temperature: ", self.PDP.getTemperature())
         self.sd.putNumber("Battery Voltage: ", self.roboController.getBatteryVoltage())
         self.sd.putBoolean(" Browned Out?", self.roboController.isBrownedOut)
         self.sd.putBoolean(" Autonomous?", self.DS.isAutonomous())
         self.sd.putBoolean(" FMS Connection", self.DS.isFMSAttached())
-        self.sd.putNumber("Right Encoder Speed: ", abs(self.frontRightMotor.getQuadratureVelocity()))
-        self.sd.putNumber("Left Encoder Speed: ", abs(self.frontLeftMotor.getQuadratureVelocity()))
-        string = self.sd.getString("Number", "null")
-        self.sd.putString("String: ", string)
-
-        # Smart Dashboard encoder
-        self.RL = abs(self.rearLeftMotor.getQuadratureVelocity())
-        self.RR = abs(self.rearRightMotor.getQuadratureVelocity())
-        self.encoderAverage = ((self.RL + self.RR) / 2)
-        self.sd.putNumber("Average Encoder Speed: ", self.encoderAverage)
-
-        # Smart Dashboard match info
+        
         self.sd.putString(" ", "Match Info")
         self.sd.putString("Event Name: ", self.DS.getEventName())
         self.sd.putNumber("Match Time: ", self.timer.getMatchTime())
@@ -227,6 +231,37 @@ class MyRobot(wpilib.TimedRobot):
             self.sd.putString("Alliance: ", "Blue")
         else:
             self.sd.putString("Alliance: ", "Invalid")
+        '''
+        '''
+        # Smart Dashboard diagnostics
+        self.sd.putNumber("Right Encoder Speed: ", abs(self.frontRightMotor.getQuadratureVelocity()))
+        self.sd.putNumber("Left Encoder Speed: ", abs(self.frontLeftMotor.getQuadratureVelocity()))
+        self.sd.putNumber("Lift Encoder: ", self.liftEncoder.getDistance())
+        
+        # Smart Dashboard encoder
+        self.RL = abs(self.rearLeftMotor.getQuadratureVelocity())
+        self.RR = abs(self.rearRightMotor.getQuadratureVelocity())
+        self.encoderAverage = ((self.RL + self.RR) / 2)
+        self.sd.putNumber("Average Encoder Speed: ", self.encoderAverage)
+        '''
+
+        # gear state
+        if self.DoubleSolenoidOne.get() == 1:
+            self.sd.putString("Gear Shift: ", "High Speed")
+        elif self.DoubleSolenoidOne.get() == 2:
+            self.sd.putString("Gear Shift: ", "Low  Speed")
+
+        # claw state
+        if self.DoubleSolenoidThree.get() == 2:
+            self.sd.putString("Claw: ", "Open")
+        elif self.DoubleSolenoidThree.get() == 1:
+            self.sd.putString("Claw: ", "Closed")
+
+        # ejector state
+        if self.DoubleSolenoidTwo.get() == 1:
+            self.sd.putString("Ejector Pins: ", "Ejected")
+        elif self.DoubleSolenoidTwo.get() == 2:
+            self.sd.putString("Ejector Pins: ", "Retracted")
 
         ''' Pneumatics Control '''
         # compressor
@@ -234,45 +269,43 @@ class MyRobot(wpilib.TimedRobot):
             self.Compressor.stop()
         elif self.xbox.getRawButton(10):
             self.Compressor.start()
-
-        # gear shifting
-        if self.rightStick.getRawButton(1):  # shift right
+        elif self.rightStick.getRawButton(1):  # shift right
             self.DoubleSolenoidOne.set(wpilib.DoubleSolenoid.Value.kForward)
         elif self.leftStick.getRawButton(1):  # shift left
             self.DoubleSolenoidOne.set(wpilib.DoubleSolenoid.Value.kReverse)
-
-        # hatch panel claw
-        if self.rightStick.getRawButton(12):  # open claw
+        elif self.xbox.getRawButton(3):  # open claw
             self.DoubleSolenoidTwo.set(wpilib.DoubleSolenoid.Value.kForward)
-        elif self.rightStick.getRawButton(11):  # close claw
+        elif self.xbox.getRawButton(2):  # close claw
             self.DoubleSolenoidTwo.set(wpilib.DoubleSolenoid.Value.kReverse)
-
-        # hatch panel ejection
-        if self.leftStick.getRawButton(12):  # eject
+        elif self.xbox.getRawButton(7):  # eject
             self.DoubleSolenoidThree.set(wpilib.DoubleSolenoid.Value.kForward)
-        elif self.leftStick.getRawButton(11):  # deject
+        elif self.xbox.getRawButton(8):  # retract
             self.DoubleSolenoidThree.set(wpilib.DoubleSolenoid.Value.kReverse)
 
         ''' Victor SPX (Lift, Lift Arm, Cargo) '''
         # lift control
-        if self.xbox.getRawAxis(3):
-            self.lift.set(self.xbox.getRawAxis(3) / 2.0)
-        elif self.xbox.getRawAxis(2):
-            self.lift.set(0.25)
+        if self.xbox.getRawAxis(3):  # up
+            self.lift.set(self.xbox.getRawAxis(3) / 1.75)
+        elif self.xbox.getRawAxis(2):  # down
+            self.lift.set(-self.xbox.getRawAxis(2) / 3.0)
+        elif self.xbox.getRawButton(5):  # hold
+            self.lift.set(0.05)
         else:
             self.lift.set(0)
 
-        # lift arm control
-        if self.xbox.getRawAxis(5):
-            self.liftArm.set(self.xbox.getRawAxis(5) / 2.0)
-        else:
-            self.liftArm.set(0)
+        # # forebar control
+        # if self.xbox.getRawAxis(1):
+        #     self.liftArm.set(-self.xbox.getRawAxis(1) / 5.5)
+        # else:
+        #     self.liftArm.set(0)
 
         # cargo intake control
-        if self.xbox.getRawAxis(1):
-            self.cargo.set(self.xbox.getRawButton(1) / 1.5)
-        elif self.xbox.getRawButton(4):
-            self.cargo.set(-self.xbox.getRawButton(1) / 1.5)
+        if self.xbox.getRawButton(1):   # take in
+            self.cargo.set(1.0)
+        elif self.xbox.getRawButton(4):  # push out
+            self.cargo.set(-1.0)
+        elif self.xbox.getRawButton(6):  # hold
+            self.cargo.set(0.05)
         else:
             self.cargo.set(0)
 
@@ -281,7 +314,14 @@ class MyRobot(wpilib.TimedRobot):
         leftAxis = self.leftStick.getRawAxis(1)
 
         # drives drive system using tank steering
-        self.drive.tankDrive(-leftAxis, -rightAxis)
+        if self.DoubleSolenoidOne.get() == 1:  # if on high gear
+            self.divisor = 0.90  # 90% of high speed
+        elif self.DoubleSolenoidOne.get() == 2:  # if on low gear
+            self.divisor = 1.0  # normal slow speed
+        else:
+            self.divisor = 1.0
+
+        self.drive.tankDrive(-leftAxis / self.divisor, -rightAxis/ self.divisor)  # drive divided by appropriate divisor
 
 
 if __name__ == '__main__':
