@@ -6,34 +6,15 @@ import wpilib
 import logging
 from math import *
 from wpilib.drive import DifferentialDrive
-from wpilib import SmartDashboard
 from networktables import NetworkTables
 from ctre import *
 
 
 class MyRobot(wpilib.TimedRobot):
     ''' values for navx'''
-    kP = 0.04
-    kI = 0.00
-    kD = 0.00
-    kF = 0.00
-
-    kToleranceDegrees = 2.0
 
     def robotInit(self):
         ''' Initialization of robot objects. '''
-
-        ''' NavX '''
-        #self.ahrs = AHRS.create_spi()
-        '''
-        turnController = wpilib.PIDController(self.kP, self.kI, self.kD, self.kF, self.ahrs, output=self)
-        turnController.setInputRange(-180.0, 180.0)
-        turnController.setOutputRange(-0.6, 0.6)
-        turnController.setAbsoluteTolerance(self.kToleranceDegrees)
-        turnController.setContinuous(True)
-        self.turnController = turnController
-        self.rotateToAngleRate = 0
-        '''
 
         ''' Talon SRX Initialization '''
         # drive train motors
@@ -78,6 +59,16 @@ class MyRobot(wpilib.TimedRobot):
         self.leftStick = wpilib.Joystick(0)
         self.rightStick = wpilib.Joystick(1)
         self.xbox = wpilib.Joystick(2)
+        self.buttonBox = wpilib.Joystick(3)
+
+        ''' Button Status'''
+        self.buttonStatusOne = False
+        self.buttonStatusTwo = False
+        self.buttonStatusThree = False
+        self.buttonStatusFour = False
+        self.buttonStatusFive = False
+        self.buttonStatusSix = False
+        self.buttonStatusSeven = False
 
         ''' Pneumatic Initialization '''
         self.Compressor = wpilib.Compressor(0)
@@ -88,21 +79,31 @@ class MyRobot(wpilib.TimedRobot):
         self.DoubleSolenoidThree = wpilib.DoubleSolenoid(4, 5)  # hatch panel ejection
         self.Compressor.start()
 
+        '''Smart Dashboard'''
         # connection for logging & Smart Dashboard
         logging.basicConfig(level=logging.DEBUG)
         self.sd = NetworkTables.getTable('SmartDashboard')
         NetworkTables.initialize(server='10.55.49.2')
-
-        # Timer
-        self.timer = wpilib.Timer()
 
         # Smart Dashboard classes
         self.PDP = wpilib.PowerDistributionPanel()
         self.roboController = wpilib.RobotController()
         self.DS = wpilib.DriverStation.getInstance()
 
+        '''Sensors'''
+        # Hall Effect Sensor
+        self.Hall = wpilib.DigitalInput(7)
+
+        '''Timer'''
+        # Timer
+        self.timer = wpilib.Timer()
+
+        '''Camera'''
         # initialization of the HTTP camera
-        wpilib.CameraServer.launch()
+        wpilib.CameraServer.launch('vision.py:main')
+        self.sd.putString("", "Top Camera")
+        self.sd.putString(" ", "Bottom Camera")
+        self.sd.putString("  ", "Connection")
 
     def autonomousInit(self):
         ''' Executed each time the robot enters autonomous. '''
@@ -115,20 +116,22 @@ class MyRobot(wpilib.TimedRobot):
         self.rightEncoder.setQuadraturePosition(0, 0)
         self.leftEncoder.setQuadraturePosition(0, 0)
 
-        # NavX reset
-        #self.ahrs.reset()
+        self.liftEncoder.reset()
+
+        self.buttonStatusOne = False
+        self.buttonStatusTwo = False
+        self.buttonStatusThree = False
+        self.buttonStatusFour = False
+        self.buttonStatusFive = False
+        self.buttonStatusSix = False
+        self.buttonStatusSeven = False
 
     def autonomousPeriodic(self):
         ''' Called periodically during autonomous. '''
 
         '''Test Methods'''
-        def breakIn():
-            if self.timer.get() <= 600:
-                self.drive.tankDrive(1.0, 1.0)
-            else:
-                self.drive.tankDrive(0, 0)
-
         def encoder_test():
+            ''' Drives robot set encoder distance away '''
             self.rightPos = fabs(self.rightEncoder.getQuadraturePosition())
             self.leftPos = fabs(self.leftEncoder.getQuadraturePosition())
             self.distIn = (((self.leftPos + self.rightPos) / 2) / 4096) * 18.84955
@@ -137,25 +140,104 @@ class MyRobot(wpilib.TimedRobot):
             else:
                 self.drive.tankDrive(0, 0)
 
-        def liftTest():
-            if self.liftEncoder.get() <= 415:
-                self.lift.set(0.5)
-            elif self.liftEncoder.get() >= 415:
-                self.lift.set(0.05)
-            else:
-                self.lift.set(0)
+        def Diagnostics():
+            ''' Smart Dashboard Tests'''
+            self.sd.putNumber("Temperature: ", self.PDP.getTemperature())
+            self.sd.putNumber("Battery Voltage: ", self.roboController.getBatteryVoltage())
+            self.sd.putBoolean(" Browned Out?", self.roboController.isBrownedOut)
 
-        def navxTest():
-            if abs(self.ahrs.getAngle()) < 90.0:
-                self.drive.tankDrive(0.6, -0.6)
-            else:
-                self.drive.tankDrive(0, 0)
+            # Smart Dashboard diagnostics
+            self.sd.putNumber("Right Encoder Speed: ", abs(self.rightEncoder.getQuadratureVelocity()))
+            self.sd.putNumber("Left Encoder Speed: ", abs(self.leftEncoder.getQuadratureVelocity()))
+            self.sd.putNumber("Lift Encoder: ", self.liftEncoder.getDistance())
 
         def Pressure():
             self.Compressor.start()
 
-        if self.DS.getGameSpecificMessage() == "RRR":
-            liftTest()
+        def cargoOne():
+            if self.liftEncoder.get() <= 133:  # Cargo 1
+                self.lift.set(0.5)
+            elif self.liftEncoder.get() > 133:
+                self.lift.set(0.05)
+                self.buttonStatus = False
+
+        def cargoTwo():
+            if self.liftEncoder.get() <= 270:   # Cargo 2
+                self.lift.set(0.5)
+            elif self.liftEncoder.get() > 270:
+                self.lift.set(0.05)
+                self.buttonStatus = False
+
+        def cargoThree():
+            if self.liftEncoder.get() <= 415:   # Cargo 3
+                self.lift.set(0.5)
+            elif self.liftEncoder.get() > 415:
+                self.lift.set(0.05)
+                self.buttonStatus = False
+
+        def hatchOne():
+            if self.liftEncoder.get() <= 96:    # Hatch 1
+                self.lift.set(0.5)
+            elif self.liftEncoder.get() > 96:
+                self.lift.set(0.05)
+                self.buttonStatus = False
+
+        def hatchTwo():
+            if self.liftEncoder.get() <= 237:   # Hatch 2
+                self.lift.set(0.5)
+            elif self.liftEncoder.get() > 237:
+                self.lift.set(0.05)
+                self.buttonStatus = False
+
+        def hatchThree():
+            if self.liftEncoder.get() <= 378:   # Hatch 3
+                self.lift.set(0.5)
+            elif self.liftEncoder.get() > 378:
+                self.lift.set(0.05)
+                self.buttonStatus = False
+
+        def liftEncoderReset():
+            self.lift.set(0.01)
+            if self.Hall.get() is True:
+                self.liftEncoder.reset()
+
+        ''' Button Status Toggle '''
+        if self.buttonBox.getRawButtonPressed(1):
+            self.buttonStatusOne = not self.buttonStatusOne
+        elif self.buttonBox.getRawButtonPressed(2):
+            self.buttonStatusTwo = not self.buttonStatusTwo
+        elif self.buttonBox.getRawButtonPressed(3):
+            self.buttonStatusThree = not self.buttonStatusThree
+        elif self.buttonBox.getRawButtonPressed(4):
+            self.buttonStatusFour = not self.buttonStatusFour
+        elif self.buttonBox.getRawButtonPressed(5):
+            self.buttonStatusFive = not self.buttonStatusFive
+        elif self.buttonBox.getRawButtonPressed(6):
+            self.buttonStatusSix = not self.buttonStatusSix
+        elif self.buttonBox.getRawButtonPressed(7):
+            self.buttonStatusSeven = not self.buttonStatusSeven
+
+        ''' Button Box Level Mapping '''
+        if self.buttonStatusOne is True:
+            cargoThree()
+        elif self.buttonStatusTwo is True:
+            hatchThree()
+        elif self.buttonStatusTwo is True:
+            cargoTwo()
+        elif self.buttonStatusTwo is True:
+            hatchTwo()
+        elif self.buttonStatusTwo is True:
+            cargoOne()
+        elif self.buttonStatusTwo is True:
+            hatchOne()
+        elif self.buttonStatusTwo is True:
+            liftEncoderReset()
+
+        ''' Test Execution '''
+        if self.DS.getGameSpecificMessage() == "pressure":
+            Pressure()
+        elif self.DS.getGameSpecificMessage() == "diagnostics":
+            Diagnostics()
 
     def teleopInit(self):
         ''' Executed at the start of teleop mode. '''
@@ -166,51 +248,12 @@ class MyRobot(wpilib.TimedRobot):
         self.rightEncoder.setQuadraturePosition(0, 0)
         self.leftEncoder.setQuadraturePosition(0, 0)
 
-        # NavX reset
-        # self.ahrs.reset()
-
         # lift encoder rest
         self.liftEncoder.reset()
 
     def teleopPeriodic(self):
         ''' Periodically executes methods during the teleop mode. '''
-
-        ''' NavX Control '''
-        '''
-        self.sd.putNumber("Gyro angle: ", self.ahrs.getAngle())
-        rotateToAngle = False
-        if self.xbox.getRawButton(7):
-            self.ahrs.reset()
-        elif self.xbox.getRawButton(4):
-            self.turnController.setSetpoint(0.0)
-            rotateToAngle = True
-        elif self.xbox.getRawButton(2):
-            self.turnController.setSetpoint(90.0)
-            rotateToAngle = True
-        elif self.xbox.getRawButton(3):
-            self.turnController.setSetpoint(180.0)
-            rotateToAngle = True
-        elif self.xbox.getRawButton(1):
-            self.turnController.setSetpoint(-90.0)
-            rotateToAngle = True
-
-        if rotateToAngle:
-            self.turnController.enable()
-            currentRotationRate = self.rotateToAngleRate
-        else:
-            self.turnController.disable()
-            currentRotationRate = self.xbox.getX()
-        '''
-
-        ''' Smart Dashboard Tests'''
-        '''
-        self.sd.putString("", "Diagnostics")
-        self.sd.putNumber("Temperature: ", self.PDP.getTemperature())
-        self.sd.putNumber("Battery Voltage: ", self.roboController.getBatteryVoltage())
-        self.sd.putBoolean(" Browned Out?", self.roboController.isBrownedOut)
-        self.sd.putBoolean(" Autonomous?", self.DS.isAutonomous())
-        self.sd.putBoolean(" FMS Connection", self.DS.isFMSAttached())
-        
+        '''        
         self.sd.putString(" ", "Match Info")
         self.sd.putString("Event Name: ", self.DS.getEventName())
         self.sd.putNumber("Match Time: ", self.timer.getMatchTime())
@@ -232,36 +275,31 @@ class MyRobot(wpilib.TimedRobot):
         else:
             self.sd.putString("Alliance: ", "Invalid")
         '''
-        '''
-        # Smart Dashboard diagnostics
-        self.sd.putNumber("Right Encoder Speed: ", abs(self.frontRightMotor.getQuadratureVelocity()))
-        self.sd.putNumber("Left Encoder Speed: ", abs(self.frontLeftMotor.getQuadratureVelocity()))
-        self.sd.putNumber("Lift Encoder: ", self.liftEncoder.getDistance())
-        
-        # Smart Dashboard encoder
-        self.RL = abs(self.rearLeftMotor.getQuadratureVelocity())
-        self.RR = abs(self.rearRightMotor.getQuadratureVelocity())
-        self.encoderAverage = ((self.RL + self.RR) / 2)
-        self.sd.putNumber("Average Encoder Speed: ", self.encoderAverage)
-        '''
+
+        ''' Smart Dashboard '''
+        # compressor state
+        if self.Compressor.enabled() is True:
+            self.sd.putString("Compressor Status: ", "Enabled")
+        elif self.Compressor.enabled() is False:
+            self.sd.putString("Compressor Status: ", "Disabled")
 
         # gear state
         if self.DoubleSolenoidOne.get() == 1:
             self.sd.putString("Gear Shift: ", "High Speed")
         elif self.DoubleSolenoidOne.get() == 2:
-            self.sd.putString("Gear Shift: ", "Low  Speed")
-
-        # claw state
-        if self.DoubleSolenoidThree.get() == 2:
-            self.sd.putString("Claw: ", "Open")
-        elif self.DoubleSolenoidThree.get() == 1:
-            self.sd.putString("Claw: ", "Closed")
+            self.sd.putString("Gear Shift: ", "Low Speed")
 
         # ejector state
         if self.DoubleSolenoidTwo.get() == 1:
             self.sd.putString("Ejector Pins: ", "Ejected")
         elif self.DoubleSolenoidTwo.get() == 2:
             self.sd.putString("Ejector Pins: ", "Retracted")
+
+        # claw state
+        if self.DoubleSolenoidThree.get() == 2:
+            self.sd.putString("Claw: ", "Open")
+        elif self.DoubleSolenoidThree.get() == 1:
+            self.sd.putString("Claw: ", "Closed")
 
         ''' Pneumatics Control '''
         # compressor
@@ -293,11 +331,13 @@ class MyRobot(wpilib.TimedRobot):
         else:
             self.lift.set(0)
 
-        # # forebar control
-        # if self.xbox.getRawAxis(1):
-        #     self.liftArm.set(-self.xbox.getRawAxis(1) / 5.5)
-        # else:
-        #     self.liftArm.set(0)
+        ''' 
+        # four-bar control
+        if self.xbox.getRawAxis(1):
+            self.liftArm.set(-self.xbox.getRawAxis(1) / 5.5)
+        else:
+            self.liftArm.set(0)
+        '''
 
         # cargo intake control
         if self.xbox.getRawButton(1):   # take in
