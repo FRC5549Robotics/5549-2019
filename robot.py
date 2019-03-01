@@ -28,8 +28,11 @@ class MyRobot(wpilib.TimedRobot):
         self.rightEncoder = self.frontRightMotor
         self.leftEncoder = self.frontLeftMotor
 
-        # lift encoders
+        # lift encoder
         self.liftEncoder = wpilib.Encoder(8, 9)
+
+        # liftArm encoder
+        self.liftArmEncoder = wpilib.Encoder(5, 6)
 
         '''Motor Groups'''
         # drive train motor groups
@@ -239,6 +242,91 @@ class MyRobot(wpilib.TimedRobot):
         elif self.DS.getGameSpecificMessage() == "diagnostics":
             Diagnostics()
 
+        ''' Smart Dashboard '''
+        # compressor state
+        if self.Compressor.enabled() is True:
+            self.sd.putString("Compressor Status: ", "Enabled")
+        elif self.Compressor.enabled() is False:
+            self.sd.putString("Compressor Status: ", "Disabled")
+
+        # gear state
+        if self.DoubleSolenoidOne.get() == 1:
+            self.sd.putString("Gear Shift: ", "High Speed")
+        elif self.DoubleSolenoidOne.get() == 2:
+            self.sd.putString("Gear Shift: ", "Low Speed")
+
+        # ejector state
+        if self.DoubleSolenoidTwo.get() == 1:
+            self.sd.putString("Ejector Pins: ", "Ejected")
+        elif self.DoubleSolenoidTwo.get() == 2:
+            self.sd.putString("Ejector Pins: ", "Retracted")
+
+        # claw state
+        if self.DoubleSolenoidThree.get() == 2:
+            self.sd.putString("Claw: ", "Open")
+        elif self.DoubleSolenoidThree.get() == 1:
+            self.sd.putString("Claw: ", "Closed")
+
+        ''' Pneumatics Control '''
+        # compressor
+        if self.xbox.getRawButton(9):
+            self.Compressor.stop()
+        elif self.xbox.getRawButton(10):
+            self.Compressor.start()
+        elif self.rightStick.getRawButton(1):  # shift right
+            self.DoubleSolenoidOne.set(wpilib.DoubleSolenoid.Value.kForward)
+        elif self.leftStick.getRawButton(1):  # shift left
+            self.DoubleSolenoidOne.set(wpilib.DoubleSolenoid.Value.kReverse)
+        elif self.xbox.getRawButton(3):  # open claw
+            self.DoubleSolenoidTwo.set(wpilib.DoubleSolenoid.Value.kForward)
+        elif self.xbox.getRawButton(2):  # close claw
+            self.DoubleSolenoidTwo.set(wpilib.DoubleSolenoid.Value.kReverse)
+        elif self.xbox.getRawButton(7):  # eject
+            self.DoubleSolenoidThree.set(wpilib.DoubleSolenoid.Value.kForward)
+        elif self.xbox.getRawButton(8):  # retract
+            self.DoubleSolenoidThree.set(wpilib.DoubleSolenoid.Value.kReverse)
+
+        ''' Victor SPX (Lift, Lift Arm, Cargo) '''
+        # lift control
+        if self.xbox.getRawAxis(3):  # up
+            self.lift.set(self.xbox.getRawAxis(3) / 1.75)
+        elif self.xbox.getRawAxis(2):  # down
+            self.lift.set(-self.xbox.getRawAxis(2) / 3.0)
+        elif self.xbox.getRawButton(5):  # hold
+            self.lift.set(0.05)
+        else:
+            self.lift.set(0)
+
+        # four-bar control
+        if self.xbox.getRawAxis(1):
+            self.liftArm.set(-self.xbox.getRawAxis(1) / 5.5)
+        else:
+            self.liftArm.set(0)
+
+        # cargo intake control
+        if self.xbox.getRawButton(1):  # take in
+            self.cargo.set(1.0)
+        elif self.xbox.getRawButton(4):  # push out
+            self.cargo.set(-1.0)
+        elif self.xbox.getRawButton(6):  # hold
+            self.cargo.set(0.05)
+        else:
+            self.cargo.set(0)
+
+        # controller mapping for tank steering
+        rightAxis = self.rightStick.getRawAxis(1)
+        leftAxis = self.leftStick.getRawAxis(1)
+
+        # drives drive system using tank steering
+        if self.DoubleSolenoidOne.get() == 1:  # if on high gear
+            self.divisor = 0.90  # 90% of high speed
+        elif self.DoubleSolenoidOne.get() == 2:  # if on low gear
+            self.divisor = 1.0  # normal slow speed
+        else:
+            self.divisor = 1.0
+
+        self.drive.tankDrive(-leftAxis / self.divisor, -rightAxis / self.divisor)  # drive divided by appropriate divisor
+
     def teleopInit(self):
         ''' Executed at the start of teleop mode. '''
 
@@ -275,6 +363,85 @@ class MyRobot(wpilib.TimedRobot):
         else:
             self.sd.putString("Alliance: ", "Invalid")
         '''
+
+        def cargoOne():
+            if self.liftEncoder.get() <= 133:  # Cargo 1
+                self.lift.set(0.5)
+            elif self.liftEncoder.get() > 133:
+                self.lift.set(0.05)
+                self.buttonStatus = False
+
+        def cargoTwo():
+            if self.liftEncoder.get() <= 270:   # Cargo 2
+                self.lift.set(0.5)
+            elif self.liftEncoder.get() > 270:
+                self.lift.set(0.05)
+                self.buttonStatus = False
+
+        def cargoThree():
+            if self.liftEncoder.get() <= 415:   # Cargo 3
+                self.lift.set(0.5)
+            elif self.liftEncoder.get() > 415:
+                self.lift.set(0.05)
+                self.buttonStatus = False
+
+        def hatchOne():
+            if self.liftEncoder.get() <= 96:    # Hatch 1
+                self.lift.set(0.5)
+            elif self.liftEncoder.get() > 96:
+                self.lift.set(0.05)
+                self.buttonStatus = False
+
+        def hatchTwo():
+            if self.liftEncoder.get() <= 237:   # Hatch 2
+                self.lift.set(0.5)
+            elif self.liftEncoder.get() > 237:
+                self.lift.set(0.05)
+                self.buttonStatus = False
+
+        def hatchThree():
+            if self.liftEncoder.get() <= 378:   # Hatch 3
+                self.lift.set(0.5)
+            elif self.liftEncoder.get() > 378:
+                self.lift.set(0.05)
+                self.buttonStatus = False
+
+        def liftEncoderReset():
+            self.lift.set(0.01)
+            if self.Hall.get() is True:
+                self.liftEncoder.reset()
+
+        ''' Button Status Toggle '''
+        if self.buttonBox.getRawButtonPressed(1):
+            self.buttonStatusOne = not self.buttonStatusOne
+        elif self.buttonBox.getRawButtonPressed(2):
+            self.buttonStatusTwo = not self.buttonStatusTwo
+        elif self.buttonBox.getRawButtonPressed(3):
+            self.buttonStatusThree = not self.buttonStatusThree
+        elif self.buttonBox.getRawButtonPressed(4):
+            self.buttonStatusFour = not self.buttonStatusFour
+        elif self.buttonBox.getRawButtonPressed(5):
+            self.buttonStatusFive = not self.buttonStatusFive
+        elif self.buttonBox.getRawButtonPressed(6):
+            self.buttonStatusSix = not self.buttonStatusSix
+        elif self.buttonBox.getRawButtonPressed(7):
+            self.buttonStatusSeven = not self.buttonStatusSeven
+
+        ''' Button Box Level Mapping '''
+        if self.buttonStatusOne is True:
+            cargoThree()
+        elif self.buttonStatusTwo is True:
+            hatchThree()
+        elif self.buttonStatusTwo is True:
+            cargoTwo()
+        elif self.buttonStatusTwo is True:
+            hatchTwo()
+        elif self.buttonStatusTwo is True:
+            cargoOne()
+        elif self.buttonStatusTwo is True:
+            hatchOne()
+        elif self.buttonStatusTwo is True:
+            liftEncoderReset()
 
         ''' Smart Dashboard '''
         # compressor state
@@ -331,13 +498,11 @@ class MyRobot(wpilib.TimedRobot):
         else:
             self.lift.set(0)
 
-        ''' 
         # four-bar control
         if self.xbox.getRawAxis(1):
             self.liftArm.set(-self.xbox.getRawAxis(1) / 5.5)
         else:
             self.liftArm.set(0)
-        '''
 
         # cargo intake control
         if self.xbox.getRawButton(1):   # take in
