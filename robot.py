@@ -23,7 +23,7 @@ class MyRobot(wpilib.TimedRobot):
         self.frontLeftMotor = WPI_TalonSRX(1)
         self.rearLeftMotor = WPI_TalonSRX(2)
 
-        '''Encoders'''
+        ''' Encoders '''
         # drive train encoders
         self.rightEncoder = self.frontRightMotor
         self.leftEncoder = self.frontLeftMotor
@@ -34,7 +34,7 @@ class MyRobot(wpilib.TimedRobot):
         # liftArm encoder
         self.liftArmEncoder = wpilib.Encoder(5, 6)
 
-        '''Motor Groups'''
+        ''' Motor Groups '''
         # drive train motor groups
         self.left = wpilib.SpeedControllerGroup(self.frontLeftMotor, self.rearLeftMotor)
         self.right = wpilib.SpeedControllerGroup(self.frontRightMotor, self.rearRightMotor)
@@ -82,31 +82,32 @@ class MyRobot(wpilib.TimedRobot):
         self.DoubleSolenoidThree = wpilib.DoubleSolenoid(4, 5)  # hatch panel ejection
         self.Compressor.start()
 
-        '''Smart Dashboard'''
+        ''' Smart Dashboard '''
         # connection for logging & Smart Dashboard
         logging.basicConfig(level=logging.DEBUG)
         self.sd = NetworkTables.getTable('SmartDashboard')
         NetworkTables.initialize(server='10.55.49.2')
+        self.sd.putString("  ", "Connection")
 
         # Smart Dashboard classes
         self.PDP = wpilib.PowerDistributionPanel()
         self.roboController = wpilib.RobotController()
         self.DS = wpilib.DriverStation.getInstance()
 
-        '''Sensors'''
+        ''' Sensors '''
         # Hall Effect Sensor
         self.Hall = wpilib.DigitalInput(7)
+        self.ultrasonic = wpilib.AnalogInput(2)
+        self.cargoUltrasonic = wpilib.AnalogInput(3)
 
-        '''Timer'''
-        # Timer
+        ''' Timer '''
         self.timer = wpilib.Timer()
 
-        '''Camera'''
+        ''' Camera '''
         # initialization of the HTTP camera
         wpilib.CameraServer.launch('vision.py:main')
         self.sd.putString("", "Top Camera")
         self.sd.putString(" ", "Bottom Camera")
-        self.sd.putString("  ", "Connection")
 
     def autonomousInit(self):
         ''' Executed each time the robot enters autonomous. '''
@@ -225,15 +226,15 @@ class MyRobot(wpilib.TimedRobot):
             cargoThree()
         elif self.buttonStatusTwo is True:
             hatchThree()
-        elif self.buttonStatusTwo is True:
+        elif self.buttonStatusThree is True:
             cargoTwo()
-        elif self.buttonStatusTwo is True:
+        elif self.buttonStatusFour is True:
             hatchTwo()
-        elif self.buttonStatusTwo is True:
+        elif self.buttonStatusFive is True:
             cargoOne()
-        elif self.buttonStatusTwo is True:
+        elif self.buttonStatusSix is True:
             hatchOne()
-        elif self.buttonStatusTwo is True:
+        elif self.buttonStatusSeven is True:
             liftEncoderReset()
 
         ''' Test Execution '''
@@ -256,16 +257,34 @@ class MyRobot(wpilib.TimedRobot):
             self.sd.putString("Gear Shift: ", "Low Speed")
 
         # ejector state
-        if self.DoubleSolenoidTwo.get() == 1:
+        if self.DoubleSolenoidThree.get() == 2:
             self.sd.putString("Ejector Pins: ", "Ejected")
-        elif self.DoubleSolenoidTwo.get() == 2:
+        elif self.DoubleSolenoidThree.get() == 1:
             self.sd.putString("Ejector Pins: ", "Retracted")
 
         # claw state
-        if self.DoubleSolenoidThree.get() == 2:
+        if self.DoubleSolenoidTwo.get() == 2:
             self.sd.putString("Claw: ", "Open")
-        elif self.DoubleSolenoidThree.get() == 1:
+        elif self.DoubleSolenoidTwo.get() == 1:
             self.sd.putString("Claw: ", "Closed")
+
+        ''' Ultrasonic stuff '''
+        # robot ultrasonic
+        self.ultraValue = self.ultrasonic.getVoltage()
+        if 0.142 <= self.ultraValue <= 0.146:
+            self.sd.putString("PLAYER STATION RANGE: ", "YES!!!!")
+        else:
+            self.sd.putString("PLAYER STATION RANGE: ", "NO!")
+
+        #self.sd.putNumber("Ultrasonic Voltage: ", self.ultraValue)
+
+        # cargo ultrasonic
+        self.cargoUltraValue = self.cargoUltrasonic.getVoltage()
+
+        if 0.70 <= self.cargoUltraValue <= 1.56:
+            self.sd.putString("HATCH RANGE: ", "HATCH IN RANGE")
+        else:
+            self.sd.putString("HATCH RANGE: ", "NOT IN RANGE")
 
         ''' Pneumatics Control '''
         # compressor
@@ -281,37 +300,35 @@ class MyRobot(wpilib.TimedRobot):
             self.DoubleSolenoidTwo.set(wpilib.DoubleSolenoid.Value.kForward)
         elif self.xbox.getRawButton(2):  # close claw
             self.DoubleSolenoidTwo.set(wpilib.DoubleSolenoid.Value.kReverse)
-        elif self.xbox.getRawButton(7):  # eject
+        elif self.xbox.getRawButton(4):  # eject
             self.DoubleSolenoidThree.set(wpilib.DoubleSolenoid.Value.kForward)
-        elif self.xbox.getRawButton(8):  # retract
+        elif self.xbox.getRawButton(1):  # retract
             self.DoubleSolenoidThree.set(wpilib.DoubleSolenoid.Value.kReverse)
 
         ''' Victor SPX (Lift, Lift Arm, Cargo) '''
         # lift control
         if self.xbox.getRawAxis(3):  # up
-            self.lift.set(self.xbox.getRawAxis(3) / 1.75)
+            self.lift.set(self.xbox.getRawAxis(3) / 1.5)
         elif self.xbox.getRawAxis(2):  # down
-            self.lift.set(-self.xbox.getRawAxis(2) / 3.0)
+            self.lift.set(-self.xbox.getRawAxis(2) * 0.25)
         elif self.xbox.getRawButton(5):  # hold
             self.lift.set(0.05)
         else:
             self.lift.set(0)
 
         # four-bar control
-        if self.xbox.getRawAxis(1):
-            self.liftArm.set(-self.xbox.getRawAxis(1) / 5.5)
+        if self.xbox.getRawButton(6):
+           self.liftArm.set(0.05)
+        elif not self.xbox.getRawButton(6):
+            self.liftArm.set(-self.xbox.getRawAxis(1) / 4.0)
         else:
             self.liftArm.set(0)
 
         # cargo intake control
-        if self.xbox.getRawButton(1):  # take in
-            self.cargo.set(1.0)
-        elif self.xbox.getRawButton(4):  # push out
-            self.cargo.set(-1.0)
-        elif self.xbox.getRawButton(6):  # hold
-            self.cargo.set(0.05)
-        else:
-            self.cargo.set(0)
+        if self.xbox.getRawButton(7):
+            self.cargo.set(0.12)
+        elif self.xbox.getRawAxis(5):  # take in
+            self.cargo.set(self.xbox.getRawAxis(5) *0.75)
 
         # controller mapping for tank steering
         rightAxis = self.rightStick.getRawAxis(1)
@@ -319,13 +336,25 @@ class MyRobot(wpilib.TimedRobot):
 
         # drives drive system using tank steering
         if self.DoubleSolenoidOne.get() == 1:  # if on high gear
-            self.divisor = 0.90  # 90% of high speed
+            self.divisor = 1.2  # 90% of high speed
         elif self.DoubleSolenoidOne.get() == 2:  # if on low gear
-            self.divisor = 1.0  # normal slow speed
+            self.divisor = 1.2  # normal slow speed
         else:
             self.divisor = 1.0
 
-        self.drive.tankDrive(-leftAxis / self.divisor, -rightAxis / self.divisor)  # drive divided by appropriate divisor
+        if leftAxis != 0:
+            self.leftSign = leftAxis / fabs(leftAxis)
+        else:
+            self.leftSign = 0
+        if rightAxis != 0:
+            self.rightSign = rightAxis / fabs(rightAxis)
+        else:
+            self.rightSign = 0
+
+        self.drive.tankDrive(-(self.leftSign)*(1 / self.divisor)*(leftAxis ** 2), -(self.rightSign)*(1 / self.divisor)*(rightAxis ** 2))
+
+        #self.drive.tankDrive(-leftAxis / self.divisor, -rightAxis/ self.divisor)  # drive divided by appropriate divisor
+
 
     def teleopInit(self):
         ''' Executed at the start of teleop mode. '''
@@ -338,6 +367,9 @@ class MyRobot(wpilib.TimedRobot):
 
         # lift encoder rest
         self.liftEncoder.reset()
+
+        # compressor
+        self.Compressor.start()
 
     def teleopPeriodic(self):
         ''' Periodically executes methods during the teleop mode. '''
@@ -369,47 +401,49 @@ class MyRobot(wpilib.TimedRobot):
                 self.lift.set(0.5)
             elif self.liftEncoder.get() > 133:
                 self.lift.set(0.05)
-                self.buttonStatus = False
+                self.buttonStatusOne = False
 
         def cargoTwo():
             if self.liftEncoder.get() <= 270:   # Cargo 2
                 self.lift.set(0.5)
             elif self.liftEncoder.get() > 270:
                 self.lift.set(0.05)
-                self.buttonStatus = False
+                self.buttonStatusTwo = False
 
         def cargoThree():
             if self.liftEncoder.get() <= 415:   # Cargo 3
                 self.lift.set(0.5)
             elif self.liftEncoder.get() > 415:
                 self.lift.set(0.05)
-                self.buttonStatus = False
+                self.buttonStatusThree = False
 
         def hatchOne():
             if self.liftEncoder.get() <= 96:    # Hatch 1
                 self.lift.set(0.5)
             elif self.liftEncoder.get() > 96:
                 self.lift.set(0.05)
-                self.buttonStatus = False
+                self.buttonStatusFour = False
 
         def hatchTwo():
             if self.liftEncoder.get() <= 237:   # Hatch 2
                 self.lift.set(0.5)
             elif self.liftEncoder.get() > 237:
                 self.lift.set(0.05)
-                self.buttonStatus = False
+                self.buttonStatusFive = False
 
         def hatchThree():
             if self.liftEncoder.get() <= 378:   # Hatch 3
                 self.lift.set(0.5)
             elif self.liftEncoder.get() > 378:
                 self.lift.set(0.05)
-                self.buttonStatus = False
+                self.buttonStatusSix = False
 
         def liftEncoderReset():
             self.lift.set(0.01)
             if self.Hall.get() is True:
                 self.liftEncoder.reset()
+                self.lift.set(0)
+                self.buttonStatusSeven = False
 
         ''' Button Status Toggle '''
         if self.buttonBox.getRawButtonPressed(1):
@@ -424,7 +458,7 @@ class MyRobot(wpilib.TimedRobot):
             self.buttonStatusFive = not self.buttonStatusFive
         elif self.buttonBox.getRawButtonPressed(6):
             self.buttonStatusSix = not self.buttonStatusSix
-        elif self.buttonBox.getRawButtonPressed(7):
+        if self.buttonBox.getRawButtonPressed(7):
             self.buttonStatusSeven = not self.buttonStatusSeven
 
         ''' Button Box Level Mapping '''
@@ -432,15 +466,15 @@ class MyRobot(wpilib.TimedRobot):
             cargoThree()
         elif self.buttonStatusTwo is True:
             hatchThree()
-        elif self.buttonStatusTwo is True:
+        elif self.buttonStatusThree is True:
             cargoTwo()
-        elif self.buttonStatusTwo is True:
+        elif self.buttonStatusFour is True:
             hatchTwo()
-        elif self.buttonStatusTwo is True:
+        elif self.buttonStatusFive is True:
             cargoOne()
-        elif self.buttonStatusTwo is True:
+        elif self.buttonStatusSix is True:
             hatchOne()
-        elif self.buttonStatusTwo is True:
+        elif self.buttonStatusSeven is True:
             liftEncoderReset()
 
         ''' Smart Dashboard '''
@@ -457,16 +491,43 @@ class MyRobot(wpilib.TimedRobot):
             self.sd.putString("Gear Shift: ", "Low Speed")
 
         # ejector state
-        if self.DoubleSolenoidTwo.get() == 1:
+        if self.DoubleSolenoidThree.get() == 2:
             self.sd.putString("Ejector Pins: ", "Ejected")
-        elif self.DoubleSolenoidTwo.get() == 2:
+        elif self.DoubleSolenoidThree.get() == 1:
             self.sd.putString("Ejector Pins: ", "Retracted")
 
         # claw state
-        if self.DoubleSolenoidThree.get() == 2:
+        if self.DoubleSolenoidTwo.get() == 2:
             self.sd.putString("Claw: ", "Open")
-        elif self.DoubleSolenoidThree.get() == 1:
+        elif self.DoubleSolenoidTwo.get() == 1:
             self.sd.putString("Claw: ", "Closed")
+
+        ''' Ultrasonic '''
+        self.ultraValue = self.ultrasonic.getVoltage()
+
+        if 0.142 <= self.ultraValue <= 0.146:
+            self.sd.putString("PLAYER STATION RANGE: ", "YES!!!!")
+        else:
+            self.sd.putString("PLAYER STATION RANGE: ", "NO!")
+
+        #self.sd.putNumber("Ultrasonic Voltage: ", self.ultraValue)
+
+        # cargo ultrasonic
+        self.cargoUltraValue = self.cargoUltrasonic.getVoltage()
+
+        if 0.70 <= self.cargoUltraValue <= 1.56:
+            self.sd.putString("HATCH RANGE: ", "HATCH IN RANGE")
+        else:
+            self.sd.putString("HATCH RANGE: ", "NOT IN RANGE")
+
+        # # button states
+        # self.sd.putBoolean("Button 1 (Cargo 3): ", self.buttonStatusOne)
+        # self.sd.putBoolean("Button 2 (Hatch 3): ", self.buttonStatusTwo)
+        # self.sd.putBoolean("Button 3 (Cargo 2): ", self.buttonStatusThree)
+        # self.sd.putBoolean("Button 4 (Hatch 2): ", self.buttonStatusFour)
+        # self.sd.putBoolean("Button 5 (Cargo 1): ", self.buttonStatusFive)
+        # self.sd.putBoolean("Button 6 (Hatch 1): ", self.buttonStatusSix)
+        # self.sd.putBoolean("Button 7 (Reset): ", self.buttonStatusSeven)
 
         ''' Pneumatics Control '''
         # compressor
@@ -482,37 +543,35 @@ class MyRobot(wpilib.TimedRobot):
             self.DoubleSolenoidTwo.set(wpilib.DoubleSolenoid.Value.kForward)
         elif self.xbox.getRawButton(2):  # close claw
             self.DoubleSolenoidTwo.set(wpilib.DoubleSolenoid.Value.kReverse)
-        elif self.xbox.getRawButton(7):  # eject
+        elif self.xbox.getRawButton(4):  # eject
             self.DoubleSolenoidThree.set(wpilib.DoubleSolenoid.Value.kForward)
-        elif self.xbox.getRawButton(8):  # retract
+        elif self.xbox.getRawButton(1):  # retract
             self.DoubleSolenoidThree.set(wpilib.DoubleSolenoid.Value.kReverse)
 
         ''' Victor SPX (Lift, Lift Arm, Cargo) '''
         # lift control
         if self.xbox.getRawAxis(3):  # up
-            self.lift.set(self.xbox.getRawAxis(3) / 1.75)
+            self.lift.set(self.xbox.getRawAxis(3) / 1.5)
         elif self.xbox.getRawAxis(2):  # down
-            self.lift.set(-self.xbox.getRawAxis(2) / 3.0)
+            self.lift.set(-self.xbox.getRawAxis(2) * 0.25)
         elif self.xbox.getRawButton(5):  # hold
             self.lift.set(0.05)
         else:
             self.lift.set(0)
 
         # four-bar control
-        if self.xbox.getRawAxis(1):
-            self.liftArm.set(-self.xbox.getRawAxis(1) / 5.5)
+        if self.xbox.getRawButton(6):
+           self.liftArm.set(0.05)
+        elif not self.xbox.getRawButton(6):
+            self.liftArm.set(-self.xbox.getRawAxis(1) / 4.0)
         else:
             self.liftArm.set(0)
 
         # cargo intake control
-        if self.xbox.getRawButton(1):   # take in
-            self.cargo.set(1.0)
-        elif self.xbox.getRawButton(4):  # push out
-            self.cargo.set(-1.0)
-        elif self.xbox.getRawButton(6):  # hold
-            self.cargo.set(0.05)
-        else:
-            self.cargo.set(0)
+        if self.xbox.getRawButton(7):
+            self.cargo.set(0.12)
+        elif self.xbox.getRawAxis(5):  # take in
+            self.cargo.set(self.xbox.getRawAxis(5) * 0.75)
 
         # controller mapping for tank steering
         rightAxis = self.rightStick.getRawAxis(1)
@@ -520,13 +579,23 @@ class MyRobot(wpilib.TimedRobot):
 
         # drives drive system using tank steering
         if self.DoubleSolenoidOne.get() == 1:  # if on high gear
-            self.divisor = 0.90  # 90% of high speed
+            self.divisor = 1.2  # 90% of high speed
         elif self.DoubleSolenoidOne.get() == 2:  # if on low gear
-            self.divisor = 1.0  # normal slow speed
+            self.divisor = 1.2  # normal slow speed
         else:
             self.divisor = 1.0
 
-        self.drive.tankDrive(-leftAxis / self.divisor, -rightAxis/ self.divisor)  # drive divided by appropriate divisor
+        if leftAxis != 0:
+            self.leftSign = leftAxis / fabs(leftAxis)
+        else:
+            self.leftSign = 0
+        if rightAxis != 0:
+            self.rightSign = rightAxis / fabs(rightAxis)
+        else:
+            self.rightSign = 0
+
+        self.drive.tankDrive(-(self.leftSign)*(1 / self.divisor)*(leftAxis ** 2), -(self.rightSign)*(1 / self.divisor)*(rightAxis ** 2))
+        #self.drive.tankDrive(-leftAxis / self.divisor, -rightAxis/ self.divisor)  # drive divided by appropriate divisor
 
 
 if __name__ == '__main__':
