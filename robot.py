@@ -10,6 +10,7 @@ from networktables import NetworkTables
 from ctre import *
 
 
+
 class MyRobot(wpilib.TimedRobot):
     ''' values for navx'''
 
@@ -65,13 +66,7 @@ class MyRobot(wpilib.TimedRobot):
         self.buttonBox = wpilib.Joystick(3)
 
         ''' Button Status'''
-        self.buttonStatusOne = False
-        self.buttonStatusTwo = False
-        self.buttonStatusThree = False
-        self.buttonStatusFour = False
-        self.buttonStatusFive = False
-        self.buttonStatusSix = False
-        self.buttonStatusSeven = False
+        self.buttonStatus = [False, False, False, False, False, False, False]
 
         ''' Pneumatic Initialization '''
         self.Compressor = wpilib.Compressor(0)
@@ -122,14 +117,6 @@ class MyRobot(wpilib.TimedRobot):
 
         self.liftEncoder.reset()
 
-        self.buttonStatusOne = False
-        self.buttonStatusTwo = False
-        self.buttonStatusThree = False
-        self.buttonStatusFour = False
-        self.buttonStatusFive = False
-        self.buttonStatusSix = False
-        self.buttonStatusSeven = False
-
     def autonomousPeriodic(self):
         ''' Called periodically during autonomous. '''
 
@@ -163,42 +150,42 @@ class MyRobot(wpilib.TimedRobot):
                 self.lift.set(0.5)
             elif self.liftEncoder.get() > 133:
                 self.lift.set(0.05)
-                self.buttonStatus = False
+                self.buttonStatus[4] = False
 
         def cargoTwo():
             if self.liftEncoder.get() <= 270:   # Cargo 2
                 self.lift.set(0.5)
             elif self.liftEncoder.get() > 270:
                 self.lift.set(0.05)
-                self.buttonStatus = False
+                self.buttonStatus[2] = False
 
         def cargoThree():
             if self.liftEncoder.get() <= 415:   # Cargo 3
                 self.lift.set(0.5)
             elif self.liftEncoder.get() > 415:
                 self.lift.set(0.05)
-                self.buttonStatus = False
+                self.buttonStatus[0] = False
 
         def hatchOne():
             if self.liftEncoder.get() <= 96:    # Hatch 1
                 self.lift.set(0.5)
             elif self.liftEncoder.get() > 96:
                 self.lift.set(0.05)
-                self.buttonStatus = False
+                self.buttonStatus[5] = False
 
         def hatchTwo():
             if self.liftEncoder.get() <= 237:   # Hatch 2
                 self.lift.set(0.5)
             elif self.liftEncoder.get() > 237:
                 self.lift.set(0.05)
-                self.buttonStatus = False
+                self.buttonStatus[3] = False
 
         def hatchThree():
             if self.liftEncoder.get() <= 378:   # Hatch 3
                 self.lift.set(0.5)
             elif self.liftEncoder.get() > 378:
                 self.lift.set(0.05)
-                self.buttonStatus = False
+                self.buttonStatus[1] = False
 
         def liftEncoderReset():
             self.lift.set(0.01)
@@ -207,34 +194,34 @@ class MyRobot(wpilib.TimedRobot):
 
         ''' Button Status Toggle '''
         if self.buttonBox.getRawButtonPressed(1):
-            self.buttonStatusOne = not self.buttonStatusOne
+            self.buttonStatus[0] = not self.buttonStatus[0]
         elif self.buttonBox.getRawButtonPressed(2):
-            self.buttonStatusTwo = not self.buttonStatusTwo
+            self.buttonStatus[1] = not self.buttonStatus[1]
         elif self.buttonBox.getRawButtonPressed(3):
-            self.buttonStatusThree = not self.buttonStatusThree
+            self.buttonStatus[2] = not self.buttonStatus[2]
         elif self.buttonBox.getRawButtonPressed(4):
-            self.buttonStatusFour = not self.buttonStatusFour
+            self.buttonStatus[3] = not self.buttonStatus[3]
         elif self.buttonBox.getRawButtonPressed(5):
-            self.buttonStatusFive = not self.buttonStatusFive
+            self.buttonStatus[4] = not self.buttonStatus[4]
         elif self.buttonBox.getRawButtonPressed(6):
-            self.buttonStatusSix = not self.buttonStatusSix
+            self.buttonStatus[5] = not self.buttonStatus[5]
         elif self.buttonBox.getRawButtonPressed(7):
-            self.buttonStatusSeven = not self.buttonStatusSeven
+            self.buttonStatus[6] = not self.buttonStatus[6]
 
         ''' Button Box Level Mapping '''
-        if self.buttonStatusOne is True:
+        if self.buttonStatus[0] is True:
             cargoThree()
-        elif self.buttonStatusTwo is True:
+        elif self.buttonStatus[1] is True:
             hatchThree()
-        elif self.buttonStatusThree is True:
+        elif self.buttonStatus[2] is True:
             cargoTwo()
-        elif self.buttonStatusFour is True:
+        elif self.buttonStatus[3] is True:
             hatchTwo()
-        elif self.buttonStatusFive is True:
+        elif self.buttonStatus[4] is True:
             cargoOne()
-        elif self.buttonStatusSix is True:
+        elif self.buttonStatus[5] is True:
             hatchOne()
-        elif self.buttonStatusSeven is True:
+        elif self.buttonStatus[6] is True:
             liftEncoderReset()
 
         ''' Test Execution '''
@@ -307,14 +294,15 @@ class MyRobot(wpilib.TimedRobot):
 
         ''' Victor SPX (Lift, Lift Arm, Cargo) '''
         # lift control
-        if self.xbox.getRawAxis(3):  # up
-            self.lift.set(self.xbox.getRawAxis(3) / 1.5)
-        elif self.xbox.getRawAxis(2):  # down
-            self.lift.set(-self.xbox.getRawAxis(2) * 0.25)
-        elif self.xbox.getRawButton(5):  # hold
-            self.lift.set(0.05)
-        else:
-            self.lift.set(0)
+        if True in self.buttonStatus:
+            if self.xbox.getRawButton(5):  # hold
+                self.lift.set(0.05)
+            elif self.xbox.getRawAxis(3):  # up
+                self.lift.set(self.xbox.getRawAxis(3) / 1.5)
+            elif self.xbox.getRawAxis(2):  # down
+                self.lift.set(-self.xbox.getRawAxis(2) * 0.25)
+            else:
+                self.lift.set(0)
 
         # four-bar control
         if self.xbox.getRawButton(6):
@@ -401,80 +389,78 @@ class MyRobot(wpilib.TimedRobot):
                 self.lift.set(0.5)
             elif self.liftEncoder.get() > 133:
                 self.lift.set(0.05)
-                self.buttonStatusOne = False
+                self.buttonStatus[4] = False
 
         def cargoTwo():
-            if self.liftEncoder.get() <= 270:   # Cargo 2
+            if self.liftEncoder.get() <= 270:  # Cargo 2
                 self.lift.set(0.5)
             elif self.liftEncoder.get() > 270:
                 self.lift.set(0.05)
-                self.buttonStatusTwo = False
+                self.buttonStatus[2] = False
 
         def cargoThree():
-            if self.liftEncoder.get() <= 415:   # Cargo 3
+            if self.liftEncoder.get() <= 415:  # Cargo 3
                 self.lift.set(0.5)
             elif self.liftEncoder.get() > 415:
                 self.lift.set(0.05)
-                self.buttonStatusThree = False
+                self.buttonStatus[0] = False
 
         def hatchOne():
-            if self.liftEncoder.get() <= 96:    # Hatch 1
+            if self.liftEncoder.get() <= 96:  # Hatch 1
                 self.lift.set(0.5)
             elif self.liftEncoder.get() > 96:
                 self.lift.set(0.05)
-                self.buttonStatusFour = False
+                self.buttonStatus[5] = False
 
         def hatchTwo():
-            if self.liftEncoder.get() <= 237:   # Hatch 2
+            if self.liftEncoder.get() <= 237:  # Hatch 2
                 self.lift.set(0.5)
             elif self.liftEncoder.get() > 237:
                 self.lift.set(0.05)
-                self.buttonStatusFive = False
+                self.buttonStatus[3] = False
 
         def hatchThree():
-            if self.liftEncoder.get() <= 378:   # Hatch 3
+            if self.liftEncoder.get() <= 378:  # Hatch 3
                 self.lift.set(0.5)
             elif self.liftEncoder.get() > 378:
                 self.lift.set(0.05)
-                self.buttonStatusSix = False
+                self.buttonStatus[1] = False
 
         def liftEncoderReset():
             self.lift.set(0.01)
             if self.Hall.get() is True:
                 self.liftEncoder.reset()
-                self.lift.set(0)
-                self.buttonStatusSeven = False
 
         ''' Button Status Toggle '''
         if self.buttonBox.getRawButtonPressed(1):
-            self.buttonStatusOne = not self.buttonStatusOne
+            self.buttonStatus[0] = not self.buttonStatus[0]
         elif self.buttonBox.getRawButtonPressed(2):
-            self.buttonStatusTwo = not self.buttonStatusTwo
+            self.buttonStatus[1] = not self.buttonStatus[1]
         elif self.buttonBox.getRawButtonPressed(3):
-            self.buttonStatusThree = not self.buttonStatusThree
+            self.buttonStatus[2] = not self.buttonStatus[2]
         elif self.buttonBox.getRawButtonPressed(4):
-            self.buttonStatusFour = not self.buttonStatusFour
+            self.buttonStatus[3] = not self.buttonStatus[3]
         elif self.buttonBox.getRawButtonPressed(5):
-            self.buttonStatusFive = not self.buttonStatusFive
+            self.buttonStatus[4] = not self.buttonStatus[4]
         elif self.buttonBox.getRawButtonPressed(6):
-            self.buttonStatusSix = not self.buttonStatusSix
-        if self.buttonBox.getRawButtonPressed(7):
-            self.buttonStatusSeven = not self.buttonStatusSeven
+            self.buttonStatus[5] = not self.buttonStatus[5]
+        elif self.buttonBox.getRawButtonPressed(7):
+            self.buttonStatus[6] = not self.buttonStatus[6]
 
         ''' Button Box Level Mapping '''
-        if self.buttonStatusOne is True:
+        if self.buttonStatus[0] is True:
             cargoThree()
-        elif self.buttonStatusTwo is True:
+        elif self.buttonStatus[1] is True:
             hatchThree()
-        elif self.buttonStatusThree is True:
+        elif self.buttonStatus[2] is True:
             cargoTwo()
-        elif self.buttonStatusFour is True:
+        elif self.buttonStatus[3] is True:
             hatchTwo()
-        elif self.buttonStatusFive is True:
+        elif self.buttonStatus[4] is True:
             cargoOne()
-        elif self.buttonStatusSix is True:
+        elif self.buttonStatus[5] is True:
             hatchOne()
-        elif self.buttonStatusSeven is True:
+        elif self.buttonStatus[6] is True:
             liftEncoderReset()
 
         ''' Smart Dashboard '''
@@ -550,14 +536,15 @@ class MyRobot(wpilib.TimedRobot):
 
         ''' Victor SPX (Lift, Lift Arm, Cargo) '''
         # lift control
-        if self.xbox.getRawAxis(3):  # up
-            self.lift.set(self.xbox.getRawAxis(3) / 1.5)
-        elif self.xbox.getRawAxis(2):  # down
-            self.lift.set(-self.xbox.getRawAxis(2) * 0.25)
-        elif self.xbox.getRawButton(5):  # hold
-            self.lift.set(0.05)
-        else:
-            self.lift.set(0)
+        if True in self.buttonStatus:
+            if self.xbox.getRawAxis(3):  # up
+                self.lift.set(self.xbox.getRawAxis(3) / 1.5)
+            elif self.xbox.getRawAxis(2):  # down
+                self.lift.set(-self.xbox.getRawAxis(2) * 0.25)
+            elif self.xbox.getRawButton(5):  # hold
+                self.lift.set(0.05)
+            else:
+                self.lift.set(0)
 
         # four-bar control
         if self.xbox.getRawButton(6):
