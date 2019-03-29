@@ -121,3 +121,9 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# IDE
+.idea
+
+# PyFRC Deploy Configuration File
+.deploy_cfg
