@@ -1,3 +1,4 @@
+
 '''
 Destination: Deep Space 2019 - GEMINI from Gryphon Robotics
 '''
@@ -22,17 +23,6 @@ class MyRobot(wpilib.TimedRobot):
         self.frontLeftMotor = WPI_TalonSRX(1)
         self.rearLeftMotor = WPI_TalonSRX(2)
 
-        ''' Encoders '''
-        # drive train encoders
-        self.rightEncoder = self.frontRightMotor
-        self.leftEncoder = self.frontLeftMotor
-
-        # lift encoder
-        self.liftEncoder = wpilib.Encoder(8, 9)
-
-        # liftArm encoder
-        self.liftArmEncoder = wpilib.Encoder(5, 6, True)
-
         ''' Motor Groups '''
         # drive train motor groups
         self.left = wpilib.SpeedControllerGroup(self.frontLeftMotor, self.rearLeftMotor)
@@ -56,22 +46,35 @@ class MyRobot(wpilib.TimedRobot):
         # cargo intake motor
         self.cargo = WPI_VictorSPX(5)
 
+        ''' Encoders '''
+        # drive train encoders
+        self.rightEncoder = self.frontRightMotor
+        self.leftEncoder = self.frontLeftMotor
+
+        # lift encoder
+        self.liftEncoder = wpilib.Encoder(8, 9)
+        # liftArm encoder
+        self.liftArmEncoder = wpilib.Encoder(5, 6, True)
+
+        ''' Sensors '''
+        # Hall Effect Sensor
+        self.minHall = wpilib.DigitalInput(7)
+        self.maxHall = wpilib.DigitalInput(4)
+        self.limitSwitch = wpilib.DigitalInput(3)
+        self.ultrasonic = wpilib.AnalogInput(2)
+        self.cargoUltrasonic = wpilib.AnalogInput(3)
+
         ''' Controller Initialization and Mapping '''
         # joystick - 0, 1 | controller - 2
         self.joystick = wpilib.Joystick(1)
         self.xbox = wpilib.Joystick(2)
-        self.buttonBox = wpilib.Joystick(3)
 
-        ''' Button Status '''
-        self.buttonStatusOne = Toggle(self.buttonBox, 6)  # xbox button 2 for cargo || xbox button 8 for hatch
-        self.buttonStatusTwo = Toggle(self.buttonBox, 7)  # Swap with xbox button 4 || swap xbox with buttonBox for hatch
-        self.buttonStatusThree = Toggle(self.buttonBox, 8)  # xbox button 1 for cargo || xbox button 7 for hatch
-
-        '''Pneumatic Button Status'''
+        ''' Pneumatic Button Status '''
         self.clawButtonStatus = Toggle(self.xbox, 2)
         self.gearButtonStatus = Toggle(self.joystick, 1)
         self.ejectorPinButtonStatus = Toggle(self.xbox, 1)
-        self.compressorButtonStatus = Toggle(self.xbox, 4)
+        self.compressorButtonStatus = Toggle(self.xbox, 9)
+        self.liftHeightButtonStatus = Toggle(self.xbox, 3)
 
         ''' Pneumatic Initialization '''
         self.Compressor = wpilib.Compressor(0)
@@ -94,14 +97,6 @@ class MyRobot(wpilib.TimedRobot):
         self.roboController = wpilib.RobotController()
         self.DS = wpilib.DriverStation.getInstance()
 
-        ''' Sensors '''
-        # Hall Effect Sensor
-        self.minHall = wpilib.DigitalInput(7)
-        self.maxHall = wpilib.DigitalInput(4)
-        self.limitSwitch = wpilib.DigitalInput(3)
-        self.ultrasonic = wpilib.AnalogInput(2)
-        self.cargoUltrasonic = wpilib.AnalogInput(3)
-
         ''' Timer '''
         self.timer = wpilib.Timer()
 
@@ -112,19 +107,30 @@ class MyRobot(wpilib.TimedRobot):
         self.sd.putString(" ", "Bottom Camera")
 
         ''' PID settings for lift '''
+        self.kP = 0.03
+        self.kI = 0.0
+        self.kD = 0.0
+        self.kF = 0.1
 
-        # self.kP = 0.03
-        # self.kI = 0.03
-        # self.kD = 0.03
+        self.PIDLiftcontroller = wpilib.PIDController(self.kP, self.kI, self.kD, self.kF, self.liftEncoder, output=self)
+        self.PIDLiftcontroller.setInputRange(0, 400)
+        self.PIDLiftcontroller.setOutputRange(-0.5, 0.5)
+        self.PIDLiftcontroller.setAbsoluteTolerance(1.0)
+        self.PIDLiftcontroller.setContinuous(True)
 
-        #
-        # self.PIDLiftcontroller = wpilib.PIDController(self.kP, self.kI, self.kD, self.leftEncoder, output=False)
-        # self.PIDLiftcontroller.setInputRange(0, 300)
-        # self.PIDLiftcontroller.setOutputRange(-0.25, 0.5)
-        # self.PIDLiftcontroller.setAbsoluteTolerance(5.0)
-        # self.PIDLiftcontroller.setContinuous(True)
+        self.encoderRate = 0
+
+    def pidWrite(self, output):
+        self.encoderRate = output
 
     def robotCode(self):
+
+        if self.liftHeightButtonStatus.on:
+            self.PIDLiftcontroller.setSetpoint(200)
+            self.liftToHeight = True
+        elif self.liftHeightButtonStatus.off:
+            self.PIDLiftcontroller.setSetpoint(0)
+            self.liftToHeight = False
 
         def hatchOne():
             if self.liftEncoder.getDistance() < 80:  # Hatch 2
@@ -239,17 +245,24 @@ class MyRobot(wpilib.TimedRobot):
         elif self.gearButtonStatus.off:
             self.DoubleSolenoidOne.set(wpilib.DoubleSolenoid.Value.kReverse)  # shift left
 
-
         ''' Victor SPX (Lift, Lift Arm, Cargo) '''
         # lift control
-        if self.buttonStatusThree.off and self.buttonStatusOne.off and self.buttonStatusTwo.off:
+        if self.liftHeightButtonStatus.get() is False:
             if self.xbox.getRawButton(5):  # hold
                 self.lift.set(0.05)
             elif self.xbox.getRawAxis(3):  # up
                 self.lift.set(self.xbox.getRawAxis(3) * 0.85)
             elif self.xbox.getRawAxis(2):  # down
-                self.lift.set(-self.xbox.getRawAxis(2) * 0.25)
+                self.lift.set(-self.xbox.getRawAxis(2) * 0.45)
             else:
+                self.lift.set(0)
+        else:
+            if self.liftToHeight is True:
+                self.PIDLiftcontroller.enable()
+                self.liftHeight = self.encoderRate
+                self.lift.set(self.liftHeight)
+            else:
+                self.PIDLiftcontroller.disable()
                 self.lift.set(0)
 
         # four-bar control
