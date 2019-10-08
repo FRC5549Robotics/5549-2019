@@ -1,4 +1,3 @@
-
 '''
 Destination: Deep Space 2019 - GEMINI from Gryphon Robotics
 '''
@@ -256,22 +255,22 @@ class MyRobot(wpilib.TimedRobot):
                 self.lift.set(-self.xbox.getRawAxis(2) * 0.45)
             else:
                 self.lift.set(0)
-        else:
-            if self.liftToHeight is True:
-                self.PIDLiftcontroller.enable()
-                self.liftHeight = self.encoderRate
-                self.lift.set(self.liftHeight)
-            else:
-                self.PIDLiftcontroller.disable()
-                self.lift.set(0)
+        # else:
+        #     if self.liftToHeight is True:
+        #         self.PIDLiftcontroller.enable()
+        #         self.liftHeight = self.encoderRate
+        #         self.lift.set(self.liftHeight)
+        #     else:
+        #         self.PIDLiftcontroller.disable()
+        #         self.lift.set(0)
 
-        # four-bar control
-        if self.xbox.getRawButton(6):   # hold
-            self.liftArm.set(0.12)
-        elif not self.xbox.getRawButton(6):
-            self.liftArm.set(-self.xbox.getRawAxis(1) * 0.35)
-        else:
-            self.liftArm.set(0)
+        # # four-bar control
+        # if self.xbox.getRawButton(6):   # hold
+        #     self.liftArm.set(0.12)
+        # elif not self.xbox.getRawButton(6):
+        #     self.liftArm.set(-self.xbox.getRawAxis(1) * 0.35)
+        # else:
+        #     self.liftArm.set(0)
 
         # cargo intake control
         if self.xbox.getRawButton(7):   # hold
