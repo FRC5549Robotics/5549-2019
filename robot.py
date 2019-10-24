@@ -52,14 +52,11 @@ class MyRobot(wpilib.TimedRobot):
 
         # lift encoder
         self.liftEncoder = wpilib.Encoder(8, 9)
-        # liftArm encoder
-        self.liftArmEncoder = wpilib.Encoder(5, 6, True)
 
         ''' Sensors '''
         # Hall Effect Sensor
         self.minHall = wpilib.DigitalInput(7)
         self.maxHall = wpilib.DigitalInput(4)
-        self.limitSwitch = wpilib.DigitalInput(3)
         self.ultrasonic = wpilib.AnalogInput(2)
         self.cargoUltrasonic = wpilib.AnalogInput(3)
 
@@ -69,19 +66,16 @@ class MyRobot(wpilib.TimedRobot):
         self.xbox = wpilib.Joystick(2)
 
         ''' Pneumatic Button Status '''
-        self.clawButtonStatus = Toggle(self.xbox, 2)
         self.gearButtonStatus = Toggle(self.joystick, 1)
-        self.ejectorPinButtonStatus = Toggle(self.xbox, 1)
         self.compressorButtonStatus = Toggle(self.xbox, 9)
-        self.liftHeightButtonStatus = Toggle(self.xbox, 3)
+        self.cargoOneButtonStatus = Toggle(self.xbox, 1)
+        self.cargoTwoButtonStatus = Toggle(self.xbox, 4)
 
         ''' Pneumatic Initialization '''
         self.Compressor = wpilib.Compressor(0)
         self.Compressor.setClosedLoopControl(True)
         self.enable = self.Compressor.getPressureSwitchValue()
         self.DoubleSolenoidOne = wpilib.DoubleSolenoid(0, 1)    # gear shifting
-        self.DoubleSolenoidTwo = wpilib.DoubleSolenoid(2, 3)    # hatch panel claw
-        self.DoubleSolenoidThree = wpilib.DoubleSolenoid(4, 5)  # hatch panel ejection
         self.Compressor.start()
 
         ''' Smart Dashboard '''
@@ -92,7 +86,6 @@ class MyRobot(wpilib.TimedRobot):
         self.sd.putString("  ", "Connection")
 
         # Smart Dashboard classes
-        self.PDP = wpilib.PowerDistributionPanel()
         self.roboController = wpilib.RobotController()
         self.DS = wpilib.DriverStation.getInstance()
 
@@ -112,8 +105,8 @@ class MyRobot(wpilib.TimedRobot):
         self.kF = 0.1
 
         self.PIDLiftcontroller = wpilib.PIDController(self.kP, self.kI, self.kD, self.kF, self.liftEncoder, output=self)
-        self.PIDLiftcontroller.setInputRange(0, 400)
-        self.PIDLiftcontroller.setOutputRange(-0.5, 0.5)
+        self.PIDLiftcontroller.setInputRange(0, 450)
+        self.PIDLiftcontroller.setOutputRange(0, 0.5)
         self.PIDLiftcontroller.setAbsoluteTolerance(1.0)
         self.PIDLiftcontroller.setContinuous(True)
 
@@ -124,58 +117,22 @@ class MyRobot(wpilib.TimedRobot):
 
     def robotCode(self):
 
-        if self.liftHeightButtonStatus.on:
+        if self.cargoOneButtonStatus.on and self.cargoTwoButtonStatus.get() is False:
             self.PIDLiftcontroller.setSetpoint(200)
             self.liftToHeight = True
-        elif self.liftHeightButtonStatus.off:
+        elif self.cargoOneButtonStatus.off:
             self.PIDLiftcontroller.setSetpoint(0)
             self.liftToHeight = False
 
-        def hatchOne():
-            if self.liftEncoder.getDistance() < 80:  # Hatch 2
-                self.lift.set(0.3)
-            elif self.liftEncoder.getDistance() >= 80:
-                self.lift.set(0.07)
-
-        def hatchTwo():
-            if self.liftEncoder.getDistance() < 275:   # Hatch 2
-                self.lift.set(0.5)
-            elif self.liftEncoder.getDistance() >= 275:
-                self.lift.set(0.07)
-
-        def cargoOne():
-            if self.liftEncoder.getDistance() < 150:  # Cargo 1
-                self.lift.set(0.5)
-            elif self.liftEncoder.getDistance() >= 150:
-                self.lift.set(0.05)
-
-        def cargoTwo():
-            if self.liftEncoder.getDistance() < 320:  # Cargo 2
-                self.lift.set(0.5)
-            elif self.liftEncoder.getDistance() >= 320:
-                self.lift.set(0.05)
-
-        def cargoShip():
-            if self.liftEncoder.getDistance() < 280:  # Cargo ship
-                self.lift.set(0.5)
-            elif self.liftEncoder.getDistance() >= 280:
-                self.lift.set(0.07)
-
-        # ''' Button Box Level Mapping '''
-        # if self.buttonStatusOne.on:
-        #     # hatchOne()
-        #     cargoOne()
-        # elif self.buttonStatusTwo.on:  # comment out for hatch
-        #     cargoTwo()
-        # elif self.buttonStatusThree.on:
-        #     # hatchTwo()
-        #     cargoShip()
+        # if self.cargoTwoButtonStatus.on and self.cargoOneButtonStatus.get() is False:
+        #     self.PIDLiftcontroller.setSetpoint(385)
+        #     self.liftToHeight = True
+        # elif self.cargoTwoButtonStatus.off:
+        #     self.PIDLiftcontroller.setSetpoint(0)
+        #     self.liftToHeight = False
 
         if self.minHall.get() is False:
             self.liftEncoder.reset()
-
-        if self.limitSwitch.get() is False:
-            self.liftArmEncoder.reset()
 
         ''' Smart Dashboard '''
         # compressor state
@@ -190,18 +147,6 @@ class MyRobot(wpilib.TimedRobot):
             self.sd.putString("Gear Shift: ", "HIGH SPEED!!!")
         elif self.DoubleSolenoidOne.get() == 2:
             self.sd.putString("Gear Shift: ", "Low")
-
-        # ejector state
-        if self.DoubleSolenoidThree.get() == 2:
-            self.sd.putString("Ejector Pins: ", "Ejected")
-        elif self.DoubleSolenoidThree.get() == 1:
-            self.sd.putString("Ejector Pins: ", "Retracted")
-
-        # claw state
-        if self.DoubleSolenoidTwo.get() == 2:
-            self.sd.putString("Claw: ", "Open")
-        elif self.DoubleSolenoidTwo.get() == 1:
-            self.sd.putString("Claw: ", "Closed")
 
         ''' Ultrasonic Range Detection '''
         # robot ultrasonic
@@ -226,18 +171,6 @@ class MyRobot(wpilib.TimedRobot):
         elif self.compressorButtonStatus.off:
             self.Compressor.stop()
 
-        # Claw Toggle
-        if self.clawButtonStatus.on:
-            self.DoubleSolenoidTwo.set(wpilib.DoubleSolenoid.Value.kForward)  # open claw
-        elif self.clawButtonStatus.off:
-            self.DoubleSolenoidTwo.set(wpilib.DoubleSolenoid.Value.kReverse)  # close claw
-
-        # Ejector Pins Toggle
-        if self.ejectorPinButtonStatus.on:
-            self.DoubleSolenoidThree.set(wpilib.DoubleSolenoid.Value.kForward)  # eject
-        elif self.ejectorPinButtonStatus.off:
-            self.DoubleSolenoidThree.set(wpilib.DoubleSolenoid.Value.kReverse)  # retract
-
         # Gear Shift Toggle
         if self.gearButtonStatus.on:
             self.DoubleSolenoidOne.set(wpilib.DoubleSolenoid.Value.kForward)  # shift right
@@ -246,31 +179,35 @@ class MyRobot(wpilib.TimedRobot):
 
         ''' Victor SPX (Lift, Lift Arm, Cargo) '''
         # lift control
-        if self.liftHeightButtonStatus.get() is False:
-            if self.xbox.getRawButton(5):  # hold
-                self.lift.set(0.05)
+        if self.cargoOneButtonStatus.get() is False and self.cargoTwoButtonStatus.get() is False:
+            if self.xbox.getRawButton(5):
+                if self.liftEncoder.getDistance() <= 230:   # hold first level
+                    self.lift.set(0.06)
+                elif 230 <= self.liftEncoder.getDistance() <= 430:  # hold second level
+                    self.lift.set(0.05)
             elif self.xbox.getRawAxis(3):  # up
                 self.lift.set(self.xbox.getRawAxis(3) * 0.85)
             elif self.xbox.getRawAxis(2):  # down
                 self.lift.set(-self.xbox.getRawAxis(2) * 0.45)
             else:
                 self.lift.set(0)
-        # else:
-        #     if self.liftToHeight is True:
-        #         self.PIDLiftcontroller.enable()
-        #         self.liftHeight = self.encoderRate
-        #         self.lift.set(self.liftHeight)
-        #     else:
-        #         self.PIDLiftcontroller.disable()
-        #         self.lift.set(0)
+        else:
+            if self.liftToHeight is True:
+                self.PIDLiftcontroller.enable()
+                self.liftHeight = self.encoderRate
+                self.lift.set(self.liftHeight)
+            else:
+                self.PIDLiftcontroller.disable()
+                self.lift.set(0)
+                self.encoderRate = 0
 
-        # # four-bar control
-        # if self.xbox.getRawButton(6):   # hold
-        #     self.liftArm.set(0.12)
-        # elif not self.xbox.getRawButton(6):
-        #     self.liftArm.set(-self.xbox.getRawAxis(1) * 0.35)
-        # else:
-        #     self.liftArm.set(0)
+        # four-bar control
+        if self.xbox.getRawButton(6):   # hold
+            self.liftArm.set(0.12)
+        elif not self.xbox.getRawButton(6):
+            self.liftArm.set(-self.xbox.getRawAxis(1) * 0.35)
+        else:
+            self.liftArm.set(0)
 
         # cargo intake control
         if self.xbox.getRawButton(7):   # hold
@@ -316,28 +253,16 @@ class MyRobot(wpilib.TimedRobot):
         self.leftEncoder.setQuadraturePosition(0, 0)
 
         self.liftEncoder.reset()
-        self.liftArmEncoder.reset()
 
     def autonomousPeriodic(self):
-
+        ''' Called periodically during autonomous. '''
         self.sd.putBoolean("LIFT RESET ", self.minHall.get())
 
-        ''' Called periodically during autonomous. '''
-
         '''Test Methods'''
-        def encoder_test():
-            ''' Drives robot set encoder distance away '''
-            self.rightPos = fabs(self.rightEncoder.getQuadraturePosition())
-            self.leftPos = fabs(self.leftEncoder.getQuadraturePosition())
-            self.distIn = (((self.leftPos + self.rightPos) / 2) / 4096) * 18.84955
-            if 0 <= self.distIn <= 72:
-                self.drive.tankDrive(0.5, 0.5)
-            else:
-                self.drive.tankDrive(0, 0)
 
         def Diagnostics():
             ''' Smart Dashboard Tests'''
-            self.sd.putNumber("Temperature: ", self.PDP.getTemperature())
+            # self.sd.putNumber("Temperature: ", self.PDP.getTemperature())
             self.sd.putNumber("Battery Voltage: ", self.roboController.getBatteryVoltage())
             self.sd.putBoolean(" Browned Out?", self.roboController.isBrownedOut)
 
