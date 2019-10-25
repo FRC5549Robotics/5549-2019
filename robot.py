@@ -183,26 +183,21 @@ class MyRobot(wpilib.TimedRobot):
 
         ''' Victor SPX Control (Lift, Lift Arm, Cargo) '''
         # lift control - checks first to see if preset height buttons are on; if not, manual lift control is enabled
-        if self.cargoOneButtonStatus.get() is False and self.cargoTwoButtonStatus.get() is False:
-            if self.xbox.getRawButton(5):                           # hold button - left bumper on xbox
-                if self.liftEncoder.getDistance() <= 230:           # hold first level
-                    self.lift.set(0.06)
-                elif 230 <= self.liftEncoder.getDistance() <= 430:  # hold second level
-                    self.lift.set(0.06)
-            elif self.xbox.getRawAxis(3):                           # up - right trigger on xbox
-                self.lift.set(self.xbox.getRawAxis(3) * 0.85)
-            elif self.xbox.getRawAxis(2):                           # down - left trigger on xbox
-                self.lift.set(-self.xbox.getRawAxis(2) * 0.45)
-            else:
-                self.lift.set(0)
-        elif self.cargoOneButtonStatus.get() is True or self.cargoTwoButtonStatus.get() is True:
-            if self.liftToHeight is True:
-                self.PIDLiftController.enable()
-                self.liftHeight = self.encoderRate
-                self.lift.set(self.liftHeight)
-            else:
-                self.PIDLiftController.disable()
-                self.lift.set(0)
+        if not self.cargoTwoButtonStatus.get():
+            if self.cargoOneButtonStatus.get():
+                self.PIDLiftcontroller.setSetpoint(200)
+                self.liftToHeight = True
+            elif not self.cargoOneButtonStatus.get():
+                self.PIDLiftcontroller.setSetpoint(0)
+                self.liftToHeight = False
+        
+        if not self.cargoOneButtonStatus.get():
+            if self.cargoTwoButtonStatus.get():
+                self.PIDLiftcontroller.setSetpoint(385)
+                self.liftToHeight = True
+            elif not self.cargoTwoButtonStatus.get():
+                self.PIDLiftcontroller.setSetpoint(0)
+                self.liftToHeight = False
 
         # four-bar control
         if self.xbox.getRawButton(6):                               # hold - right bumper on xbox
