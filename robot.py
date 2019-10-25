@@ -121,7 +121,7 @@ class MyRobot(wpilib.TimedRobot):
 
     def robotCode(self):
 
-        if self.cargoOneButtonStatus.on and self.cargoTwoButtonStatus.get() is False:
+        """if self.cargoOneButtonStatus.on and self.cargoTwoButtonStatus.get() is False:
             self.PIDLiftController.setSetpoint(200)     # 200 encoder value for level 1 cargo height
             self.liftToHeight = True
         elif self.cargoOneButtonStatus.off:
@@ -133,7 +133,7 @@ class MyRobot(wpilib.TimedRobot):
             self.liftToHeight = True
         elif self.cargoTwoButtonStatus.off:
             self.PIDLiftController.setSetpoint(0)
-            self.liftToHeight = False
+            self.liftToHeight = False"""
 
         if self.bottomHall.get() is False:      # false for hall effect sensor is actually true
             self.liftEncoder.reset()
@@ -184,21 +184,19 @@ class MyRobot(wpilib.TimedRobot):
         ''' Victor SPX Control (Lift, Lift Arm, Cargo) '''
         # lift control - checks first to see if preset height buttons are on; if not, manual lift control is enabled
         if self.cargoTwoButtonStatus.get() != self.cargoOneButtonStatus.get():
-            if not self.cargoTwoButtonStatus.get():
-                if self.cargoOneButtonStatus.get():
-                    self.PIDLiftcontroller.setSetpoint(200)
-                    self.liftToHeight = True
-                elif not self.cargoOneButtonStatus.get():
-                    self.PIDLiftcontroller.setSetpoint(0)
-                    self.liftToHeight = False
-
-            if not self.cargoOneButtonStatus.get():
-                if self.cargoTwoButtonStatus.get():
-                    self.PIDLiftcontroller.setSetpoint(385)
-                    self.liftToHeight = True
-                elif not self.cargoTwoButtonStatus.get():
-                    self.PIDLiftcontroller.setSetpoint(0)
-                    self.liftToHeight = False
+            if self.cargoOneButtonStatus.get():
+                self.PIDLiftcontroller.setSetpoint(200)
+            if self.cargoTwoButtonStatus.get():
+                self.PIDLiftcontroller.setSetpoint(385)
+        elif not (self.cargoTwoButtonStatus.get() and self.cargoOneButtonStatus.get()):
+            if self.xbox.getRawButton(5):                           # hold button - left bumper on xbox
+                self.lift.set(0.06)
+            elif self.xbox.getRawAxis(3) > .01 or self.xbox.getRawAxis(2) < -.01:   # up - right trigger on xbox
+                self.lift.set(self.xbox.getRawAxis(3) * 0.85)
+            elif self.xbox.getRawAxis(2) > .01 or self.xbox.getRawAxis(2) < -.01:   # down - left trigger on xbox
+                self.lift.set(-self.xbox.getRawAxis(2) * 0.45)
+            else:
+                self.lift.set(0)
 
         # four-bar control
         if self.xbox.getRawButton(6):                               # hold - right bumper on xbox
@@ -211,7 +209,7 @@ class MyRobot(wpilib.TimedRobot):
         # cargo intake control
         if self.xbox.getRawButton(7):                           # hold
             self.cargo.set(0.12)
-        elif self.xbox.getRawAxis(5):                           # take in - right joystick on xbox
+        else:                           # take in - right joystick on xbox
             self.cargo.set(self.xbox.getRawAxis(5) * 0.75)
 
         # controller mapping for arcade steering
