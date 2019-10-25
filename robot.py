@@ -54,14 +54,16 @@ class MyRobot(wpilib.TimedRobot):
         self.liftEncoder = wpilib.Encoder(8, 9)
 
         ''' Sensors '''
-        # Hall Effect Sensor
-        self.minHall = wpilib.DigitalInput(7)
-        self.maxHall = wpilib.DigitalInput(4)
+        # hall effect
+        self.bottomHall = wpilib.DigitalInput(7)
+        self.topHall = wpilib.DigitalInput(4)
+
+        # ultrasonic
         self.ultrasonic = wpilib.AnalogInput(2)
         self.cargoUltrasonic = wpilib.AnalogInput(3)
 
         ''' Controller Initialization and Mapping '''
-        # joystick - 0, 1 | controller - 2
+        # joystick - 1 | controller - 2
         self.joystick = wpilib.Joystick(1)
         self.xbox = wpilib.Joystick(2)
 
@@ -75,8 +77,8 @@ class MyRobot(wpilib.TimedRobot):
         self.Compressor = wpilib.Compressor(0)
         self.Compressor.setClosedLoopControl(True)
         self.enable = self.Compressor.getPressureSwitchValue()
-        self.DoubleSolenoidOne = wpilib.DoubleSolenoid(0, 1)    # gear shifting
-        self.Compressor.start()
+        self.DoubleSolenoidGear = wpilib.DoubleSolenoid(0, 1)    # gear shifting
+        self.Compressor.start()     # starts compressor to intake air
 
         ''' Smart Dashboard '''
         # connection for logging & Smart Dashboard
@@ -98,17 +100,19 @@ class MyRobot(wpilib.TimedRobot):
         self.sd.putString("", "Top Camera")
         self.sd.putString(" ", "Bottom Camera")
 
-        ''' PID settings for lift '''
-        self.kP = 0.03
-        self.kI = 0.0
-        self.kD = 0.0
-        self.kF = 0.1
+        ''' PID '''
+        # PID settings
+        self.kP = 0.03  # proportional
+        self.kI = 0.0   # integral
+        self.kD = 0.0   # derivative
+        self.kF = 0.1   # feed-forward
 
-        self.PIDLiftcontroller = wpilib.PIDController(self.kP, self.kI, self.kD, self.kF, self.liftEncoder, output=self)
-        self.PIDLiftcontroller.setInputRange(0, 450)
-        self.PIDLiftcontroller.setOutputRange(0, 0.5)
-        self.PIDLiftcontroller.setAbsoluteTolerance(1.0)
-        self.PIDLiftcontroller.setContinuous(True)
+        # PID initialization
+        self.PIDLiftController = wpilib.PIDController(self.kP, self.kI, self.kD, self.kF, self.liftEncoder, output=self)
+        self.PIDLiftController.setInputRange(0, 450)        # encoder values in this case
+        self.PIDLiftController.setOutputRange(0, 0.5)       # motor speed values in this case
+        self.PIDLiftController.setAbsoluteTolerance(1.0)    # maximum speed tolerance
+        self.PIDLiftController.setContinuous(True)
 
         self.encoderRate = 0
 
@@ -118,20 +122,20 @@ class MyRobot(wpilib.TimedRobot):
     def robotCode(self):
 
         if self.cargoOneButtonStatus.on and self.cargoTwoButtonStatus.get() is False:
-            self.PIDLiftcontroller.setSetpoint(200)
+            self.PIDLiftController.setSetpoint(200)     # 200 encoder value for level 1 cargo height
             self.liftToHeight = True
         elif self.cargoOneButtonStatus.off:
-            self.PIDLiftcontroller.setSetpoint(0)
+            self.PIDLiftController.setSetpoint(0)
             self.liftToHeight = False
 
-        # if self.cargoTwoButtonStatus.on and self.cargoOneButtonStatus.get() is False:
-        #     self.PIDLiftcontroller.setSetpoint(385)
-        #     self.liftToHeight = True
-        # elif self.cargoTwoButtonStatus.off:
-        #     self.PIDLiftcontroller.setSetpoint(0)
-        #     self.liftToHeight = False
+        if self.cargoTwoButtonStatus.on and self.cargoOneButtonStatus.get() is False:
+            self.PIDLiftController.setSetpoint(385)
+            self.liftToHeight = True
+        elif self.cargoTwoButtonStatus.off:
+            self.PIDLiftController.setSetpoint(0)
+            self.liftToHeight = False
 
-        if self.minHall.get() is False:
+        if self.bottomHall.get() is False:      # false for hall effect sensor is actually true
             self.liftEncoder.reset()
 
         ''' Smart Dashboard '''
@@ -143,10 +147,10 @@ class MyRobot(wpilib.TimedRobot):
 
         ''' Pneumatics Dashboard States '''
         # gear state
-        if self.DoubleSolenoidOne.get() == 1:
-            self.sd.putString("Gear Shift: ", "HIGH SPEED!!!")
-        elif self.DoubleSolenoidOne.get() == 2:
-            self.sd.putString("Gear Shift: ", "Low")
+        if self.DoubleSolenoidGear.get() == 1:
+            self.sd.putString("Gear Shift: ", "FAST!")
+        elif self.DoubleSolenoidGear.get() == 2:
+            self.sd.putString("Gear Shift: ", "Slow")
 
         ''' Ultrasonic Range Detection '''
         # robot ultrasonic
@@ -165,79 +169,66 @@ class MyRobot(wpilib.TimedRobot):
 
         ''' Pneumatics Toggles '''
 
-        # Compressor
+        # compressor toggle - press left joystick on xbox controller to toggle
         if self.compressorButtonStatus.on:
             self.Compressor.start()
         elif self.compressorButtonStatus.off:
             self.Compressor.stop()
 
-        # Gear Shift Toggle
+        # gear shift toggle - press trigger on joystick to toggle
         if self.gearButtonStatus.on:
-            self.DoubleSolenoidOne.set(wpilib.DoubleSolenoid.Value.kForward)  # shift right
+            self.DoubleSolenoidGear.set(wpilib.DoubleSolenoid.Value.kForward)
         elif self.gearButtonStatus.off:
-            self.DoubleSolenoidOne.set(wpilib.DoubleSolenoid.Value.kReverse)  # shift left
+            self.DoubleSolenoidGear.set(wpilib.DoubleSolenoid.Value.kReverse)
 
-        ''' Victor SPX (Lift, Lift Arm, Cargo) '''
-        # lift control
+        ''' Victor SPX Control (Lift, Lift Arm, Cargo) '''
+        # lift control - checks first to see if preset height buttons are on; if not, manual lift control is enabled
         if self.cargoOneButtonStatus.get() is False and self.cargoTwoButtonStatus.get() is False:
-            if self.xbox.getRawButton(5):
-                if self.liftEncoder.getDistance() <= 230:   # hold first level
+            if self.xbox.getRawButton(5):                           # hold button - left bumper on xbox
+                if self.liftEncoder.getDistance() <= 230:           # hold first level
                     self.lift.set(0.06)
                 elif 230 <= self.liftEncoder.getDistance() <= 430:  # hold second level
-                    self.lift.set(0.05)
-            elif self.xbox.getRawAxis(3):  # up
+                    self.lift.set(0.06)
+            elif self.xbox.getRawAxis(3):                           # up - right trigger on xbox
                 self.lift.set(self.xbox.getRawAxis(3) * 0.85)
-            elif self.xbox.getRawAxis(2):  # down
+            elif self.xbox.getRawAxis(2):                           # down - left trigger on xbox
                 self.lift.set(-self.xbox.getRawAxis(2) * 0.45)
             else:
                 self.lift.set(0)
-        else:
+        elif self.cargoOneButtonStatus.get() is True or self.cargoTwoButtonStatus.get() is True:
             if self.liftToHeight is True:
-                self.PIDLiftcontroller.enable()
+                self.PIDLiftController.enable()
                 self.liftHeight = self.encoderRate
                 self.lift.set(self.liftHeight)
             else:
-                self.PIDLiftcontroller.disable()
+                self.PIDLiftController.disable()
                 self.lift.set(0)
-                self.encoderRate = 0
 
         # four-bar control
-        if self.xbox.getRawButton(6):   # hold
+        if self.xbox.getRawButton(6):                               # hold - right bumper on xbox
             self.liftArm.set(0.12)
-        elif not self.xbox.getRawButton(6):
-            self.liftArm.set(-self.xbox.getRawAxis(1) * 0.35)
+        elif not self.xbox.getRawButton(6):                         # if hold is not engaged
+            self.liftArm.set(-self.xbox.getRawAxis(1) * 0.40)
         else:
             self.liftArm.set(0)
 
         # cargo intake control
-        if self.xbox.getRawButton(7):   # hold
+        if self.xbox.getRawButton(7):                           # hold
             self.cargo.set(0.12)
-        elif self.xbox.getRawAxis(5):  # take in
+        elif self.xbox.getRawAxis(5):                           # take in - right joystick on xbox
             self.cargo.set(self.xbox.getRawAxis(5) * 0.75)
 
         # controller mapping for arcade steering
-        self.driveAxis = self.joystick.getRawAxis(1)
-        self.rotateAxis = self.joystick.getRawAxis(2)
+        self.driveAxis = self.joystick.getRawAxis(1)            # forward and backward axis on joystick
+        self.rotateAxis = self.joystick.getRawAxis(2)           # left and right axis on joystick
 
-        # drives drive system using tank steering
-        if self.DoubleSolenoidOne.get() == 1:  # if on high gear
-            self.divisor = 1.0  # 90% of high speed
-            self.turnDivisor = 0.8
-        elif self.DoubleSolenoidOne.get() == 2:  # if on low gear
-            self.divisor = 0.85  # normal slow speed
-            self.turnDivisor = 0.75
+        #
+        if self.DoubleSolenoidGear.get() == 1:                  # if on high gear
+            self.divisor = 1.0                                  # 100% of high speed
+        elif self.DoubleSolenoidGear.get() == 2:                # if on low gear
+            self.divisor = 0.85                                 # 85% of slow speed
         else:
-            self.divisor = 1.0
-
-        if self.driveAxis != 0:
-            self.leftSign = self.driveAxis / fabs(self.driveAxis)
-        else:
-            self.leftSign = 0
-
-        if self.rotateAxis != 0:
-            self.rightSign = self.rotateAxis / fabs(self.rotateAxis)
-        else:
-            self.rightSign = 0
+            self.divisor = 1.0                                  # 100% speed regardless of gear
 
         self.drive.arcadeDrive(-self.driveAxis * self.divisor, self.rotateAxis * 0.75)
 
@@ -252,11 +243,15 @@ class MyRobot(wpilib.TimedRobot):
         self.rightEncoder.setQuadraturePosition(0, 0)
         self.leftEncoder.setQuadraturePosition(0, 0)
 
+        # lift encoder reset
         self.liftEncoder.reset()
+
+        # compressor
+        self.Compressor.start()
 
     def autonomousPeriodic(self):
         ''' Called periodically during autonomous. '''
-        self.sd.putBoolean("LIFT RESET ", self.minHall.get())
+        self.sd.putBoolean("LIFT RESET ", self.bottomHall.get())
 
         '''Test Methods'''
 
@@ -264,7 +259,7 @@ class MyRobot(wpilib.TimedRobot):
             ''' Smart Dashboard Tests'''
             # self.sd.putNumber("Temperature: ", self.PDP.getTemperature())
             self.sd.putNumber("Battery Voltage: ", self.roboController.getBatteryVoltage())
-            self.sd.putBoolean(" Browned Out?", self.roboController.isBrownedOut)
+            self.sd.putBoolean(" Brown Out?", self.roboController.isBrownedOut)
 
             # Smart Dashboard diagnostics
             self.sd.putNumber("Right Encoder Speed: ", abs(self.rightEncoder.getQuadratureVelocity()))
