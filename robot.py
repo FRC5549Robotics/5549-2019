@@ -183,21 +183,22 @@ class MyRobot(wpilib.TimedRobot):
 
         ''' Victor SPX Control (Lift, Lift Arm, Cargo) '''
         # lift control - checks first to see if preset height buttons are on; if not, manual lift control is enabled
-        if not self.cargoTwoButtonStatus.get():
-            if self.cargoOneButtonStatus.get():
-                self.PIDLiftcontroller.setSetpoint(200)
-                self.liftToHeight = True
-            elif not self.cargoOneButtonStatus.get():
-                self.PIDLiftcontroller.setSetpoint(0)
-                self.liftToHeight = False
-        
-        if not self.cargoOneButtonStatus.get():
-            if self.cargoTwoButtonStatus.get():
-                self.PIDLiftcontroller.setSetpoint(385)
-                self.liftToHeight = True
-            elif not self.cargoTwoButtonStatus.get():
-                self.PIDLiftcontroller.setSetpoint(0)
-                self.liftToHeight = False
+        if self.cargoTwoButtonStatus.get() != self.cargoOneButtonStatus.get():
+            if not self.cargoTwoButtonStatus.get():
+                if self.cargoOneButtonStatus.get():
+                    self.PIDLiftcontroller.setSetpoint(200)
+                    self.liftToHeight = True
+                elif not self.cargoOneButtonStatus.get():
+                    self.PIDLiftcontroller.setSetpoint(0)
+                    self.liftToHeight = False
+
+            if not self.cargoOneButtonStatus.get():
+                if self.cargoTwoButtonStatus.get():
+                    self.PIDLiftcontroller.setSetpoint(385)
+                    self.liftToHeight = True
+                elif not self.cargoTwoButtonStatus.get():
+                    self.PIDLiftcontroller.setSetpoint(0)
+                    self.liftToHeight = False
 
         # four-bar control
         if self.xbox.getRawButton(6):                               # hold - right bumper on xbox
