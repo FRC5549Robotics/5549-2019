@@ -105,14 +105,13 @@ class MyRobot(wpilib.TimedRobot):
         self.kP = 0.03  # proportional
         self.kI = 0.0   # integral
         self.kD = 0.0   # derivative
-        self.kF = 0.1   # feed-forward
+        self.kF = 0.75   # feed-forward
 
         # PID initialization
-        self.PIDLiftController = wpilib.PIDController(self.kP, self.kI, self.kD, self.kF, self.liftEncoder, output=self)
+        self.PIDLiftController = wpilib.PIDController(self.kP, self.kI, self.kD, self.kF, self.liftEncoder, output=self.lift)
         self.PIDLiftController.setInputRange(0, 450)        # encoder values in this case
         self.PIDLiftController.setOutputRange(0, 0.5)       # motor speed values in this case
         self.PIDLiftController.setAbsoluteTolerance(1.0)    # maximum speed tolerance
-        self.PIDLiftController.setContinuous(True)
 
         self.encoderRate = 0
 
@@ -120,20 +119,6 @@ class MyRobot(wpilib.TimedRobot):
         self.encoderRate = output
 
     def robotCode(self):
-
-        """if self.cargoOneButtonStatus.on and self.cargoTwoButtonStatus.get() is False:
-            self.PIDLiftController.setSetpoint(200)     # 200 encoder value for level 1 cargo height
-            self.liftToHeight = True
-        elif self.cargoOneButtonStatus.off:
-            self.PIDLiftController.setSetpoint(0)
-            self.liftToHeight = False
-
-        if self.cargoTwoButtonStatus.on and self.cargoOneButtonStatus.get() is False:
-            self.PIDLiftController.setSetpoint(385)
-            self.liftToHeight = True
-        elif self.cargoTwoButtonStatus.off:
-            self.PIDLiftController.setSetpoint(0)
-            self.liftToHeight = False"""
 
         if self.bottomHall.get() is False:      # false for hall effect sensor is actually true
             self.liftEncoder.reset()
@@ -184,11 +169,15 @@ class MyRobot(wpilib.TimedRobot):
         ''' Victor SPX Control (Lift, Lift Arm, Cargo) '''
         # lift control - checks first to see if preset height buttons are on; if not, manual lift control is enabled
         if self.cargoTwoButtonStatus.get() != self.cargoOneButtonStatus.get():
+            if not self.PIDLiftController.isEnabled():
+                self.PIDLiftController.enable()
             if self.cargoOneButtonStatus.get():
-                self.PIDLiftcontroller.setSetpoint(200)
+                self.PIDLiftController.setSetpoint(200)
             if self.cargoTwoButtonStatus.get():
-                self.PIDLiftcontroller.setSetpoint(385)
+                self.PIDLiftController.setSetpoint(385)
         elif not (self.cargoTwoButtonStatus.get() and self.cargoOneButtonStatus.get()):
+            if self.PIDLiftController.isEnabled():
+                self.PIDLiftController.disable()
             if self.xbox.getRawButton(5):                           # hold button - left bumper on xbox
                 self.lift.set(0.06)
             elif self.xbox.getRawAxis(3) > .01 or self.xbox.getRawAxis(2) < -.01:   # up - right trigger on xbox
@@ -197,6 +186,8 @@ class MyRobot(wpilib.TimedRobot):
                 self.lift.set(-self.xbox.getRawAxis(2) * 0.45)
             else:
                 self.lift.set(0)
+        else:
+            self.lift.set(0.03)
 
         # four-bar control
         if self.xbox.getRawButton(6):                               # hold - right bumper on xbox
