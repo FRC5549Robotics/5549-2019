@@ -4,7 +4,6 @@ Destination: Deep Space 2019 - GEMINI from Gryphon Robotics
 
 import wpilib
 import logging
-from math import *
 from wpilib.drive import DifferentialDrive
 from networktables import NetworkTables
 from ctre import *
