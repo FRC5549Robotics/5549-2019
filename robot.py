@@ -16,10 +16,10 @@ class MyRobot(wpilib.TimedRobot):
 
         ''' Talon SRX Initialization '''
         # drive train motors
-        self.frontRightMotor = WPI_TalonSRX(4)
-        self.rearRightMotor = WPI_TalonSRX(3)
-        self.frontLeftMotor = WPI_TalonSRX(1)
-        self.rearLeftMotor = WPI_TalonSRX(2)
+        self.frontLeftMotor = WPI_TalonSRX(0)
+        self.rearLeftMotor = WPI_TalonSRX(1)
+        self.frontRightMotor = WPI_TalonSRX(3)
+        self.rearRightMotor = WPI_TalonSRX(2)
 
         ''' Motor Groups '''
         # drive train motor groups
@@ -32,17 +32,17 @@ class MyRobot(wpilib.TimedRobot):
 
         ''' Victor SPX Initialization '''
         # lift motors
-        self.liftOne = WPI_VictorSPX(1)
-        self.liftTwo = WPI_VictorSPX(2)
+        self.liftOne = WPI_VictorSPX(0)
+        self.liftTwo = WPI_VictorSPX(1)
         self.lift = wpilib.SpeedControllerGroup(self.liftOne, self.liftTwo)
 
         # lift arm motors
-        self.liftArmOne = WPI_VictorSPX(3)
-        self.liftArmTwo = WPI_VictorSPX(4)
+        self.liftArmOne = WPI_VictorSPX(2)
+        self.liftArmTwo = WPI_VictorSPX(3)
         self.liftArm = wpilib.SpeedControllerGroup(self.liftArmOne, self.liftArmTwo)
 
         # cargo intake motor
-        self.cargo = WPI_VictorSPX(5)
+        self.cargo = WPI_VictorSPX(4)
 
         ''' Encoders '''
         # drive train encoders
@@ -63,12 +63,14 @@ class MyRobot(wpilib.TimedRobot):
 
         ''' Controller Initialization and Mapping '''
         # joystick - 1 | controller - 2
-        self.joystick = wpilib.Joystick(1)
+        self.joystickLeft = wpilib.Joystick(0)
+        self.joystickRight = wpilib.Joystick(1)
         self.xbox = wpilib.Joystick(2)
 
         ''' Pneumatic Button Status '''
-        self.gearButtonStatus = Toggle(self.joystick, 1)
-        self.compressorButtonStatus = Toggle(self.xbox, 9)
+        self.gearButtonStatus = Toggle(self.joystickRight, 1)
+        self.driveButtonStatus = Toggle(self.joystickRight, 2)
+
         self.cargoOneButtonStatus = Toggle(self.xbox, 1)
         self.cargoTwoButtonStatus = Toggle(self.xbox, 4)
 
@@ -84,7 +86,6 @@ class MyRobot(wpilib.TimedRobot):
         logging.basicConfig(level=logging.DEBUG)
         self.sd = NetworkTables.getTable('SmartDashboard')
         NetworkTables.initialize(server='10.55.49.2')
-        self.sd.putString("  ", "Connection")
 
         # Smart Dashboard classes
         self.roboController = wpilib.RobotController()
@@ -96,8 +97,6 @@ class MyRobot(wpilib.TimedRobot):
         ''' Camera '''
         # initialization of the HTTP camera
         wpilib.CameraServer.launch('vision.py:main')
-        self.sd.putString("", "Top Camera")
-        self.sd.putString(" ", "Bottom Camera")
 
         ''' PID '''
         # PID settings
@@ -125,31 +124,23 @@ class MyRobot(wpilib.TimedRobot):
         ''' Smart Dashboard '''
         # compressor state
         if self.Compressor.enabled() is True:
-            self.sd.putString("Compressor Status: ", "Enabled")
+            self.sd.putString("Compressor Status", "ON")
         elif self.Compressor.enabled() is False:
-            self.sd.putString("Compressor Status: ", "Disabled")
+            self.sd.putString("Compressor Status", "OFF")
 
         ''' Pneumatics Dashboard States '''
         # gear state
         if self.DoubleSolenoidGear.get() == 1:
-            self.sd.putString("Gear Shift: ", "FAST!")
+            self.sd.putString("Gear Shift", "FAST!")
         elif self.DoubleSolenoidGear.get() == 2:
-            self.sd.putString("Gear Shift: ", "Slow")
+            self.sd.putString("Gear Shift", "SLOW")
 
         ''' Ultrasonic Range Detection '''
         # robot ultrasonic
-        self.ultraValue = self.ultrasonic.getVoltage()
-        if 0.142 <= self.ultraValue <= 0.146:
-            self.sd.putString("PLAYER STATION RANGE: ", "YES!!!!")
-        else:
-            self.sd.putString("PLAYER STATION RANGE: ", "NO!")
+        self.sd.putNumber("Ultrasonic Range", self.ultrasonic.getVoltage())
 
         # cargo ultrasonic
-        self.cargoUltraValue = self.cargoUltrasonic.getVoltage()
-        if 0.70 <= self.cargoUltraValue <= 1.56:
-            self.sd.putString("HATCH RANGE: ", "HATCH IN RANGE")
-        else:
-            self.sd.putString("HATCH RANGE: ", "NOT IN RANGE")
+        self.sd.putNumber("Cargo Ultrasonic Range", self.cargoUltrasonic.getVoltage())
 
         ''' Pneumatics Toggles '''
 
@@ -177,11 +168,11 @@ class MyRobot(wpilib.TimedRobot):
         elif not (self.cargoTwoButtonStatus.get() and self.cargoOneButtonStatus.get()):
             if self.PIDLiftController.isEnabled():
                 self.PIDLiftController.disable()
-            if self.xbox.getRawButton(5):                           # hold button - left bumper on xbox
+            if self.xbox.getRawButton(5):  # hold button - left bumper on xbox
                 self.lift.set(0.06)
-            elif self.xbox.getRawAxis(3) > .01 or self.xbox.getRawAxis(2) < -.01:   # up - right trigger on xbox
+            elif self.xbox.getRawAxis(3) > .01 or self.xbox.getRawAxis(2) < -.01:  # up - right trigger on xbox
                 self.lift.set(self.xbox.getRawAxis(3) * 0.85)
-            elif self.xbox.getRawAxis(2) > .01 or self.xbox.getRawAxis(2) < -.01:   # down - left trigger on xbox
+            elif self.xbox.getRawAxis(2) > .01 or self.xbox.getRawAxis(2) < -.01:  # down - left trigger on xbox
                 self.lift.set(-self.xbox.getRawAxis(2) * 0.45)
             else:
                 self.lift.set(0)
@@ -199,22 +190,19 @@ class MyRobot(wpilib.TimedRobot):
         # cargo intake control
         if self.xbox.getRawButton(7):                           # hold
             self.cargo.set(0.12)
-        else:                           # take in - right joystick on xbox
-            self.cargo.set(self.xbox.getRawAxis(5) * 0.75)
-
-        # controller mapping for arcade steering
-        self.driveAxis = self.joystick.getRawAxis(1)            # forward and backward axis on joystick
-        self.rotateAxis = self.joystick.getRawAxis(2)           # left and right axis on joystick
-
-        #
-        if self.DoubleSolenoidGear.get() == 1:                  # if on high gear
-            self.divisor = 1.0                                  # 100% of high speed
-        elif self.DoubleSolenoidGear.get() == 2:                # if on low gear
-            self.divisor = 0.85                                 # 85% of slow speed
         else:
-            self.divisor = 1.0                                  # 100% speed regardless of gear
+            self.cargo.set(self.xbox.getRawAxis(5) * 0.75)  # take in - right joystick on xbox
 
-        self.drive.arcadeDrive(-self.driveAxis * self.divisor, self.rotateAxis * 0.75)
+        # Mapping for Driving
+        self.leftAxis = self.joystickLeft.getRawAxis(1)     # Y-Axis for Left Joystick
+        self.rightAxis = self.joystickRight.getRawAxis(1)   # Y-Axis for Right Joystick
+        self.rotateAxis = self.joystickRight.getRawAxis(2)  # rotate on Right Joystick
+
+        # Shifting between Arcade and Tank
+        if self.driveButtonStatus.on:
+            self.drive.tankDrive(-self.leftAxis, -self.rightAxis)
+        elif self.driveButtonStatus.off:
+            self.drive.arcadeDrive(-self.rightAxis, self.rotateAxis * 0.75)
 
     def autonomousInit(self):
         ''' Executed each time the robot enters autonomous. '''
