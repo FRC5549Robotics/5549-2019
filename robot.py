@@ -1,7 +1,6 @@
 '''
 Destination: Deep Space 2019 - GEMINI from Gryphon Robotics
 '''
-#coolkidsAidanCool
 import wpilib
 import logging
 from math import *
